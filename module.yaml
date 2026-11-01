@@ -1,0 +1,13 @@
+id: open-platform
+version: 0.1.0
+kind: library
+scenario_tests:
+  OP-01:
+    - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
+  OP-02:
+    - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
+  OP-03:
+    - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
+    - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
+  OP-04:
+    - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
