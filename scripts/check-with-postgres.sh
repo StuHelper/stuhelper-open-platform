@@ -22,7 +22,7 @@ mkdir "$task_dir/socket"
 export STUHELPER_OPEN_PLATFORM_TEST_DSN="host=$task_dir/socket port=55439 user=$(id -un) dbname=postgres sslmode=disable"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   {
-    printf 'Catalog source: `%s`\n\n' "$(git rev-parse HEAD)"
+    printf 'Open platform source: `%s`\n\n' "$(git rev-parse HEAD)"
     printf 'Database: `%s`; GOWORK=off; isolated socket-only test cluster.\n' "$("$pg_bin/postgres" --version)"
   } >> "$GITHUB_STEP_SUMMARY"
 fi
