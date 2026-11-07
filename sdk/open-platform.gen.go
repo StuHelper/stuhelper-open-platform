@@ -497,7 +497,9 @@ type Problem struct {
 
 // Profile defines model for Profile.
 type Profile struct {
-	Bio      string `json:"bio"`
+	Bio string `json:"bio"`
+
+	// Id 当前应用专属的用户标识，与响应 subject 一致，不返回全局个人主页 ID。
 	Id       string `json:"id"`
 	Nickname string `json:"nickname"`
 }

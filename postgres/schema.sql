@@ -18,3 +18,20 @@ REVOKE ALL ON ALL TABLES IN SCHEMA open_platform FROM PUBLIC;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA open_platform FROM PUBLIC;
 
 CREATE INDEX IF NOT EXISTS consents_pending_owner ON open_platform.consents(owner_key) WHERE COALESCE(document->>'Decision','')='';
+
+ALTER TABLE open_platform.requests ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+CREATE INDEX IF NOT EXISTS requests_expiry ON open_platform.requests(created_at,actor,key);
+ALTER TABLE open_platform.tokens ADD COLUMN IF NOT EXISTS expires_at timestamptz;
+UPDATE open_platform.tokens SET expires_at=(document->>'ExpiresAt')::timestamptz WHERE expires_at IS NULL;
+ALTER TABLE open_platform.tokens ALTER COLUMN expires_at SET NOT NULL;
+CREATE INDEX IF NOT EXISTS tokens_expiry ON open_platform.tokens(expires_at,hash);
+CREATE INDEX IF NOT EXISTS tokens_consent ON open_platform.tokens((document->>'ConsentID'));
+ALTER TABLE open_platform.consents ADD COLUMN IF NOT EXISTS expires_at timestamptz;
+UPDATE open_platform.consents SET expires_at=(document->'View'->>'expires_at')::timestamptz WHERE expires_at IS NULL;
+ALTER TABLE open_platform.consents ALTER COLUMN expires_at SET NOT NULL;
+CREATE INDEX IF NOT EXISTS consents_expiry ON open_platform.consents(expires_at,id);
+CREATE INDEX IF NOT EXISTS events_expiry ON open_platform.events(created_at,id);
+ALTER TABLE open_platform.notices ADD COLUMN IF NOT EXISTS created_at timestamptz;
+UPDATE open_platform.notices SET created_at=(document->>'created_at')::timestamptz WHERE created_at IS NULL;
+ALTER TABLE open_platform.notices ALTER COLUMN created_at SET NOT NULL;
+CREATE INDEX IF NOT EXISTS notices_expiry ON open_platform.notices(created_at,id);

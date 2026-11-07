@@ -216,6 +216,7 @@ func validVerifier(v string) bool {
 }
 func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 	var out Token
+	replayed := false
 	if e := s.ready(); e != nil {
 		return out, e
 	}
@@ -245,7 +246,17 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 			return ErrInput
 		}
 		challenge := sha256.Sum256([]byte(in.Verifier))
-		if c.Consumed || c.Decision != "approve" || !s.now().Before(c.CodeExpiresAt) || c.Input.ClientID != in.ClientID || c.Input.RedirectURI != in.RedirectURI || a.View.Revision != c.View.Application.Revision || base64.RawURLEncoding.EncodeToString(challenge[:]) != c.Input.Challenge {
+		if c.Decision != "approve" || c.Input.ClientID != in.ClientID || c.Input.RedirectURI != in.RedirectURI || a.View.Revision != c.View.Application.Revision || base64.RawURLEncoding.EncodeToString(challenge[:]) != c.Input.Challenge {
+			return ErrUnauthenticated
+		}
+		if c.Consumed {
+			if e := t.RevokeCodeTokens(c.View.ID, c.GrantID); e != nil {
+				return e
+			}
+			replayed = true
+			return nil
+		}
+		if !s.now().Before(c.CodeExpiresAt) {
 			return ErrUnauthenticated
 		}
 		g, e := t.Grant(c.GrantID)
@@ -268,7 +279,7 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 		if g.View.ExpiresAt.Before(expires) {
 			expires = g.View.ExpiresAt
 		}
-		if e = t.SaveToken(TokenRecord{Hash: hash(token), GrantID: g.View.ID, GrantRevision: g.View.Revision, AppRevision: a.View.Revision, ExpiresAt: expires}); e != nil {
+		if e = t.SaveToken(TokenRecord{Hash: hash(token), ConsentID: c.View.ID, GrantID: g.View.ID, GrantRevision: g.View.Revision, AppRevision: a.View.Revision, ExpiresAt: expires}); e != nil {
 			return e
 		}
 		c.Consumed = true
@@ -281,5 +292,8 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 		out = Token{AccessToken: token, TokenType: "Bearer", ExpiresIn: int64(expires.Sub(s.now()).Seconds()), Scope: strings.Join(g.View.Scopes, " "), Subject: g.View.Subject}
 		return nil
 	})
+	if e == nil && replayed {
+		return Token{}, ErrUnauthenticated
+	}
 	return out, e
 }

@@ -429,6 +429,7 @@ export interface components {
             number?: string;
         };
         Profile: {
+            /** @description 当前应用专属的用户标识，与响应 subject 一致，不返回全局个人主页 ID。 */
             id: string;
             nickname: string;
             bio: string;

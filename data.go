@@ -99,6 +99,11 @@ func (s *Service) Read(ctx context.Context, token, scope string, q Query) (Data,
 			return e
 		}
 		value.Subject = current.View.Subject
+		if value.Profile != nil {
+			profile := *value.Profile
+			profile.ID = current.View.Subject
+			value.Profile = &profile
+		}
 		value.Scope = scope
 		return t.Event(grant.Owner, "data_returned", grant.View.ID, scope)
 	})

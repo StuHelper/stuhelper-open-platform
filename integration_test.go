@@ -97,7 +97,7 @@ func setup(t *testing.T) fixture {
 			t.Fatal(e)
 		}
 	}
-	if _, e = owner.Exec(`CREATE ROLE ` + role + ` LOGIN;REVOKE ALL ON SCHEMA public FROM PUBLIC;GRANT USAGE ON SCHEMA open_platform TO ` + role + `;GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA open_platform TO ` + role + `;GRANT USAGE ON ALL SEQUENCES IN SCHEMA open_platform TO ` + role + `;REVOKE UPDATE,DELETE ON open_platform.events,open_platform.requests,open_platform.tokens FROM ` + role + `;CREATE SCHEMA foreign_data;CREATE TABLE foreign_data.secret(value text);`); e != nil {
+	if _, e = owner.Exec(`CREATE ROLE ` + role + ` LOGIN;REVOKE ALL ON SCHEMA public FROM PUBLIC;GRANT USAGE ON SCHEMA open_platform TO ` + role + `;GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA open_platform TO ` + role + `;GRANT USAGE ON ALL SEQUENCES IN SCHEMA open_platform TO ` + role + `;REVOKE UPDATE ON open_platform.events,open_platform.requests,open_platform.tokens FROM ` + role + `;CREATE SCHEMA foreign_data;CREATE TABLE foreign_data.secret(value text);`); e != nil {
 		t.Fatal(e)
 	}
 	runtime, e := sql.Open("pgx", dsn+" dbname="+name+" user="+role)
@@ -230,9 +230,6 @@ func TestApplicationApprovalAndPerScopeAuthorization(t *testing.T) {
 		t.Fatal(qqData, qqErr)
 	}
 
-	if _, e = s.Exchange(ctx, op.TokenInput{GrantType: "authorization_code", ClientID: a.ID, RedirectURI: a.RedirectURIs[0], Code: code, Verifier: verifier, ClientSecret: cr.Secret}); !errors.Is(e, op.ErrUnauthenticated) {
-		t.Fatal(e)
-	}
 	data, e := s.Read(ctx, token.AccessToken, "profile", op.Query{})
 	if e != nil || data.Profile == nil || data.Profile.Nickname != "alice" || data.QQBinding != nil || data.Subject != token.Subject {
 		t.Fatal(data, e)

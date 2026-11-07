@@ -112,7 +112,7 @@ type Token struct {
 	Subject     string `json:"subject"`
 }
 type TokenRecord struct {
-	Hash, GrantID              string
+	Hash, GrantID, ConsentID   string
 	GrantRevision, AppRevision int64
 	ExpiresAt                  time.Time
 }
@@ -255,6 +255,7 @@ type Transaction interface {
 	SaveGrant(GrantRecord) error
 	Token(string) (TokenRecord, error)
 	SaveToken(TokenRecord) error
+	RevokeCodeTokens(string, string) error
 	Quota(string, string, int) error
 	Notice(string) (Notice, error)
 	Notices(string, string, int) ([]Notice, error)

@@ -61,7 +61,7 @@ func (r *Repository) Ready(ctx context.Context) error {
 }
 func (r *Repository) CheckRuntime(ctx context.Context) error {
 	var unsafe bool
-	e := r.DB.QueryRowContext(ctx, `SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolbypassrls OR has_schema_privilege(current_user,'open_platform','CREATE') OR has_table_privilege(current_user,'open_platform.events','UPDATE,DELETE') OR has_table_privilege(current_user,'open_platform.requests','UPDATE,DELETE') OR has_table_privilege(current_user,'open_platform.tokens','UPDATE,DELETE') FROM pg_roles WHERE rolname=current_user`).Scan(&unsafe)
+	e := r.DB.QueryRowContext(ctx, `SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolbypassrls OR has_schema_privilege(current_user,'open_platform','CREATE') OR has_table_privilege(current_user,'open_platform.events','UPDATE') OR has_table_privilege(current_user,'open_platform.requests','UPDATE') OR has_table_privilege(current_user,'open_platform.tokens','UPDATE') FROM pg_roles WHERE rolname=current_user`).Scan(&unsafe)
 	if e != nil || unsafe {
 		return op.ErrUnavailable
 	}
@@ -200,7 +200,7 @@ func (t *transaction) SaveConsent(c op.ConsentRecord) error {
 	if e != nil {
 		return op.ErrUnavailable
 	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.consents VALUES($1,$2,$3,NULLIF($4,''),$5) ON CONFLICT(id) DO UPDATE SET code_hash=EXCLUDED.code_hash,document=EXCLUDED.document`, c.View.ID, c.Owner, c.Input.ClientID, c.CodeHash, raw)
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.consents(id,owner_key,app_id,code_hash,document,expires_at) VALUES($1,$2,$3,NULLIF($4,''),$5,$6) ON CONFLICT(id) DO UPDATE SET code_hash=EXCLUDED.code_hash,document=EXCLUDED.document,expires_at=EXCLUDED.expires_at`, c.View.ID, c.Owner, c.Input.ClientID, c.CodeHash, raw, c.View.ExpiresAt)
 	return safe(e)
 }
 func (r *Repository) LocateConsent(ctx context.Context, id string) (op.ConsentRecord, error) {
@@ -250,7 +250,7 @@ func (t *transaction) SaveToken(v op.TokenRecord) error {
 	if e != nil {
 		return op.ErrUnavailable
 	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.tokens VALUES($1,$2,$3)`, v.Hash, v.GrantID, raw)
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.tokens(hash,grant_id,document,expires_at) VALUES($1,$2,$3,$4)`, v.Hash, v.GrantID, raw, v.ExpiresAt)
 	return safe(e)
 }
 func (r *Repository) LocateToken(ctx context.Context, h string) (op.TokenRecord, op.GrantRecord, error) {
@@ -293,7 +293,7 @@ func (t *transaction) SaveNotice(n op.Notice) error {
 	if e != nil {
 		return op.ErrUnavailable
 	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.notices(id,app_id,document) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET document=EXCLUDED.document`, n.ID, n.AppID, raw)
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.notices(id,app_id,document,created_at) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET document=EXCLUDED.document`, n.ID, n.AppID, raw, n.CreatedAt)
 	return safe(e)
 }
 func (t *transaction) Replay(actor, key string) (string, json.RawMessage, error) {
@@ -303,7 +303,7 @@ func (t *transaction) Replay(actor, key string) (string, json.RawMessage, error)
 	return h, b, safe(e)
 }
 func (t *transaction) SaveReplay(actor, key, digest string, result json.RawMessage) error {
-	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.requests VALUES($1,$2,$3,$4)`, actor, key, digest, string(result))
+	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.requests(actor,key,digest,result) VALUES($1,$2,$3,$4)`, actor, key, digest, string(result))
 	return safe(e)
 }
 func (t *transaction) Event(actor, kind, object, key string) error {
