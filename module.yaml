@@ -1,6 +1,28 @@
 id: open-platform
 version: 0.1.0
-kind: library
+kind: module
+api: 1
+critical: false
+requires:
+  - id: platform
+    api: 1
+  - id: identity
+    api: 1
+  - id: profiles
+    api: 1
+optional:
+  - id: verification
+    api: 1
+  - id: catalog
+    api: 1
+  - id: reviews
+    api: 1
+  - id: groups
+    api: 1
+capabilities:
+  - open-platform.manage
+  - open-platform.data
+capability_requires: {}
 scenario_tests:
   OP-01:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
