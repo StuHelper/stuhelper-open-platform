@@ -259,8 +259,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @enum {string} */
-        Scope: "student_status" | "schools" | "qq_binding" | "profile" | "schedule" | "catalog" | "public_reviews";
+        /**
+         * @description QQ binding status and QQ binding details are separately requested, approved and consented scopes. Status returns only bound; details returns bound and the bound number. Neither scope implies the other.
+         * @enum {string}
+         */
+        Scope: "student_status" | "schools" | "qq_binding_status" | "qq_binding_details" | "profile" | "schedule" | "catalog" | "public_reviews";
         Problem: {
             code: string;
         };
@@ -335,6 +338,8 @@ export interface components {
             redirect_uri: string;
             /** Format: date-time */
             expires_at: string;
+            /** @description Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested. */
+            qq_tiers: ("binding_status" | "binding_status_and_number")[];
         };
         ConsentDecision: {
             /** @enum {string} */
@@ -424,6 +429,7 @@ export interface components {
             id: string;
             name: string;
         };
+        /** @description For qq_binding_status, number is always omitted. For qq_binding_details, number is present only when bound. Missing or faulty trusted sources return 503. */
         QQBinding: {
             bound: boolean;
             number?: string;

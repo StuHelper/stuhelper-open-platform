@@ -1952,12 +1952,14 @@
         "enum": [
           "student_status",
           "schools",
-          "qq_binding",
+          "qq_binding_status",
+          "qq_binding_details",
           "profile",
           "schedule",
           "catalog",
           "public_reviews"
-        ]
+        ],
+        "description": "QQ binding status and QQ binding details are separately requested, approved and consented scopes. Status returns only bound; details returns bound and the bound number. Neither scope implies the other."
       },
       "Problem": {
         "type": "object",
@@ -2023,7 +2025,7 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 7
+            "maxItems": 8
           },
           "client_type": {
             "type": "string",
@@ -2074,14 +2076,14 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 7
+            "maxItems": 8
           },
           "approved_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 7
+            "maxItems": 8
           },
           "client_type": {
             "type": "string",
@@ -2156,7 +2158,7 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 7
+            "maxItems": 8
           },
           "policy": {
             "$ref": "#/components/schemas/Policy"
@@ -2234,7 +2236,7 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 7
+            "maxItems": 8
           },
           "code_challenge": {
             "type": "string",
@@ -2272,7 +2274,7 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 7
+            "maxItems": 8
           },
           "redirect_uri": {
             "type": "string",
@@ -2281,6 +2283,18 @@
           "expires_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "qq_tiers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "binding_status",
+                "binding_status_and_number"
+              ]
+            },
+            "maxItems": 2,
+            "description": "Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested."
           }
         },
         "required": [
@@ -2288,7 +2302,8 @@
           "application",
           "requested_scopes",
           "redirect_uri",
-          "expires_at"
+          "expires_at",
+          "qq_tiers"
         ]
       },
       "ConsentDecision": {
@@ -2307,7 +2322,7 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 7
+            "maxItems": 8
           }
         },
         "required": [
@@ -2424,7 +2439,7 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 7
+            "maxItems": 8
           },
           "state": {
             "type": "string",
@@ -2466,7 +2481,7 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 7
+            "maxItems": 8
           }
         },
         "required": [
@@ -2495,7 +2510,7 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 7
+            "maxItems": 8
           },
           "reason": {
             "type": "string",
@@ -2678,7 +2693,8 @@
         },
         "required": [
           "bound"
-        ]
+        ],
+        "description": "For qq_binding_status, number is always omitted. For qq_binding_details, number is present only when bound. Missing or faulty trusted sources return 503."
       },
       "Profile": {
         "type": "object",

@@ -18,7 +18,7 @@ var (
 	ErrQuota           = errors.New("quota_exceeded")
 	ErrClient          = errors.New("invalid_client")
 )
-var Scopes = []string{"student_status", "schools", "qq_binding", "profile", "schedule", "catalog", "public_reviews"}
+var Scopes = []string{"student_status", "schools", "qq_binding_status", "qq_binding_details", "profile", "schedule", "catalog", "public_reviews"}
 
 type Principal struct {
 	Owner string
@@ -78,6 +78,7 @@ type ConsentInput struct {
 	Method      string   `json:"code_challenge_method"`
 }
 type Consent struct {
+	QQTiers     []string    `json:"qq_tiers"`
 	ID          string      `json:"id"`
 	Application Application `json:"application"`
 	Scopes      []string    `json:"requested_scopes"`

@@ -49,7 +49,7 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 			if e != nil {
 				return out, e
 			}
-			out = Consent{ID: id, Application: a.View, Scopes: in.Scopes, RedirectURI: in.RedirectURI, ExpiresAt: s.now().Add(5 * time.Minute)}
+			out = Consent{QQTiers: qqTiers(in.Scopes), ID: id, Application: a.View, Scopes: in.Scopes, RedirectURI: in.RedirectURI, ExpiresAt: s.now().Add(5 * time.Minute)}
 			out.Application.Note = ""
 			e = t.SaveConsent(ConsentRecord{View: out, Owner: p.Owner, Input: in})
 			return out, e
@@ -296,4 +296,18 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 		return Token{}, ErrUnauthenticated
 	}
 	return out, e
+}
+
+// qqTiers describes the precise disclosure requested on the consent page.
+func qqTiers(scopes []string) []string {
+	tiers := []string{}
+	for _, scope := range scopes {
+		switch scope {
+		case "qq_binding_status":
+			tiers = append(tiers, "binding_status")
+		case "qq_binding_details":
+			tiers = append(tiers, "binding_status_and_number")
+		}
+	}
+	return tiers
 }

@@ -52,7 +52,7 @@ func (s *source) Read(ctx context.Context, owner, scope string, q op.Query) (op.
 	switch scope {
 	case "profile":
 		return op.Data{Profile: &op.Profile{ID: "public-" + owner, Nickname: owner, Bio: "Synthetic profile"}, QQBinding: &op.QQBinding{Bound: true, Number: "123456"}}, nil
-	case "qq_binding":
+	case "qq_binding_status", "qq_binding_details":
 		return op.Data{QQBinding: &op.QQBinding{Bound: true, Number: "123456"}}, nil
 	default:
 		return op.Data{StudentStatus: &op.StudentStatus{Verified: true, EvaluatedAt: time.Now()}}, nil
@@ -185,7 +185,7 @@ func count(t *testing.T, db *sql.DB, q string, args ...any) int {
 func TestApplicationApprovalAndPerScopeAuthorization(t *testing.T) {
 	x := setup(t)
 	s := x.s
-	a := apply(t, s, dev, "create", []string{"profile", "qq_binding", "student_status"}, "confidential")
+	a := apply(t, s, dev, "create", []string{"profile", "qq_binding_details", "student_status"}, "confidential")
 	if _, e := s.PrepareConsent(ctx, alice, "pending", op.ConsentInput{ClientID: a.ID, RedirectURI: a.RedirectURIs[0], State: strings.Repeat("s", 16), Scopes: []string{"profile"}, Challenge: strings.Repeat("A", 43), Method: "S256"}); !errors.Is(e, op.ErrForbidden) {
 		t.Fatal(e)
 	}
@@ -195,7 +195,7 @@ func TestApplicationApprovalAndPerScopeAuthorization(t *testing.T) {
 	if _, e := s.Application(ctx, bob, a.ID); !errors.Is(e, op.ErrNotFound) {
 		t.Fatal(e)
 	}
-	a = approve(t, s, a, []string{"profile", "qq_binding"}, 100)
+	a = approve(t, s, a, []string{"profile", "qq_binding_details"}, 100)
 	if _, e := s.PrepareConsent(ctx, alice, "not-approved", op.ConsentInput{ClientID: a.ID, RedirectURI: a.RedirectURIs[0], State: strings.Repeat("s", 16), Scopes: []string{"student_status"}, Challenge: strings.Repeat("A", 43), Method: "S256"}); !errors.Is(e, op.ErrForbidden) {
 		t.Fatal(e)
 	}
@@ -223,9 +223,9 @@ func TestApplicationApprovalAndPerScopeAuthorization(t *testing.T) {
 		t.Fatal(e)
 	}
 	token := exchange(t, s, a, code, verifier, cr.Secret)
-	_, qqCode, qqVerifier := consent(t, s, bob, a, "qq-read", []string{"qq_binding"})
+	_, qqCode, qqVerifier := consent(t, s, bob, a, "qq-read", []string{"qq_binding_details"})
 	qqToken := exchange(t, s, a, qqCode, qqVerifier, cr.Secret)
-	qqData, qqErr := s.Read(ctx, qqToken.AccessToken, "qq_binding", op.Query{})
+	qqData, qqErr := s.Read(ctx, qqToken.AccessToken, "qq_binding_details", op.Query{})
 	if qqErr != nil || qqData.QQBinding == nil || !qqData.QQBinding.Bound || qqData.QQBinding.Number != "123456" || qqData.Profile != nil {
 		t.Fatal(qqData, qqErr)
 	}
@@ -235,7 +235,7 @@ func TestApplicationApprovalAndPerScopeAuthorization(t *testing.T) {
 		t.Fatal(data, e)
 	}
 	before := x.source.calls.Load()
-	if _, e = s.Read(ctx, token.AccessToken, "qq_binding", op.Query{}); !errors.Is(e, op.ErrForbidden) || x.source.calls.Load() != before {
+	if _, e = s.Read(ctx, token.AccessToken, "qq_binding_details", op.Query{}); !errors.Is(e, op.ErrForbidden) || x.source.calls.Load() != before {
 		t.Fatal(e)
 	}
 	// Consent retry returns the same code but never stores a recoverable plaintext credential.
@@ -251,12 +251,12 @@ func TestApplicationApprovalAndPerScopeAuthorization(t *testing.T) {
 			t.Fatal("plaintext secret in consent")
 		}
 	}
-	changed := op.ConsentDecision{Decision: "approve", Scopes: []string{"profile", "qq_binding"}}
+	changed := op.ConsentDecision{Decision: "approve", Scopes: []string{"profile", "qq_binding_details"}}
 	if _, e = s.Decide(ctx, alice, c.ID, "decide:one", changed); !errors.Is(e, op.ErrConflict) {
 		t.Fatal(e)
 	}
 	// One issuance under concurrent exchange; single-use survives multiple connections.
-	_, code2, v2 := consent(t, s, bob, a, "concurrent", []string{"qq_binding"})
+	_, code2, v2 := consent(t, s, bob, a, "concurrent", []string{"qq_binding_details"})
 	var success atomic.Int32
 	var wg sync.WaitGroup
 	for range 8 {
@@ -430,7 +430,7 @@ func TestHTTPRejectsForgedOwnersAndUsesOAuthExchange(t *testing.T) {
 	call("GET", "/data/profile?owner=bob", "Bearer "+token.AccessToken, "", "", "", 400)
 	call("GET", "/data/profile", "Bearer session-alice", "", "", "", 401)
 	w = call("GET", "/data/profile", "Bearer "+token.AccessToken, "", "", "", 200)
-	if strings.Contains(w.Body.String(), "qq_binding") {
+	if strings.Contains(w.Body.String(), "qq_binding_details") {
 		t.Fatal("scope projection leak")
 	}
 	call("POST", "/token", "", "", form, "application/x-www-form-urlencoded", 400)

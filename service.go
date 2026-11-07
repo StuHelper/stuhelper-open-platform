@@ -70,7 +70,7 @@ func validOwner(v string) bool {
 	return v != "" && len(v) <= 2048 && utf8.ValidString(v) && !strings.ContainsFunc(v, unicode.IsControl)
 }
 func validateScopes(v []string, empty bool) ([]string, error) {
-	if len(v) > 7 || (!empty && len(v) == 0) {
+	if len(v) > len(Scopes) || (!empty && len(v) == 0) {
 		return nil, ErrInput
 	}
 	out := append([]string{}, v...)

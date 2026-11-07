@@ -128,11 +128,15 @@ func project(scope string, v Data) (Data, error) {
 			return out, ErrUnavailable
 		}
 		out.Schools = v.Schools
-	case "qq_binding":
+	case "qq_binding_status", "qq_binding_details":
 		if v.QQBinding == nil {
 			return out, ErrUnavailable
 		}
-		b := v.QQBinding
+		b := *v.QQBinding
+		if scope == "qq_binding_status" {
+			out.QQBinding = &QQBinding{Bound: b.Bound}
+			break
+		}
 		if b.Bound {
 			if len(b.Number) < 5 || len(b.Number) > 20 || b.Number[0] == '0' {
 				return out, ErrUnavailable
@@ -145,7 +149,7 @@ func project(scope string, v Data) (Data, error) {
 		} else if b.Number != "" {
 			return out, ErrUnavailable
 		}
-		out.QQBinding = b
+		out.QQBinding = &b
 	case "profile":
 		if v.Profile == nil || !validText(v.Profile.Nickname, 20, true) || !validText(v.Profile.Bio, 120, true) {
 			return out, ErrUnavailable

@@ -26,6 +26,9 @@ capability_requires: {}
 scenario_tests:
   OP-01:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
+  OP-11:
+    - repair_test.go#TestQQTiersRequireIndependentApprovalConsentAndTrustedSource
+    - projection_test.go#TestQQProjectionNeverLeaksNumberForStatus
   OP-02:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
   OP-03:

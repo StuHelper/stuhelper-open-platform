@@ -6,7 +6,9 @@
 
 开发者提交名称、用途、HTTPS 回调与信息范围。管理员逐项审批并设置授权期限、令牌期限和 UTC 日调用配额。登录不会自动授予业务信息权限。
 
-稳定范围为 student_status、schools、qq_binding、profile、schedule、catalog、public_reviews。目录与公开评价仍由提供方执行当前内容准入。课表读取本人有效选课记录对应的排课，空 meetings 表示没有提供排课，不能推断用户空闲。QQ 必须来自可信绑定来源，缺失来源返回 503。
+稳定范围为 student_status、schools、qq_binding_status、qq_binding_details、profile、schedule、catalog、public_reviews。目录与公开评价仍由提供方执行当前内容准入。课表读取本人有效选课记录对应的排课，空 meetings 表示没有提供排课，不能推断用户空闲。
+
+QQ 两档分别申请、审批和授权，同意页 qq_tiers 表明“绑定状态”或“绑定状态和号码”。状态档不返回号码。两档必须来自可信绑定来源，缺失或故障返回 503。
 
 授权使用单次授权码与 PKCE S256，精确匹配登记回调。每个账号最多保留 100 个未过期、未决定的授权请求。用户会话创建 5 分钟授权请求，服务端绑定本人、应用修订、范围、回调和 state。决定返回回调 URL，客户端必须核验 state 与 iss。授权码有效 60 秒。
 

@@ -93,3 +93,42 @@ func TestCleanupIsBoundedPreservesLiveDataAndRollsBackFailures(t *testing.T) {
 		t.Fatal("unbounded batch accepted", e)
 	}
 }
+
+func TestQQTiersRequireIndependentApprovalConsentAndTrustedSource(t *testing.T) {
+	x := setup(t)
+	scopes := []string{"qq_binding_status", "qq_binding_details"}
+	a := apply(t, x.s, dev, "qq", scopes, "public")
+	a = approve(t, x.s, a, []string{"qq_binding_status"}, 100)
+	// An approved status scope cannot be used to request the number tier.
+	_, err := x.s.PrepareConsent(ctx, alice, "unapproved", op.ConsentInput{ClientID: a.ID, RedirectURI: a.RedirectURIs[0], State: "state", Scopes: []string{"qq_binding_details"}, Challenge: strings.Repeat("a", 43), Method: "S256"})
+	if !errors.Is(err, op.ErrForbidden) {
+		t.Fatal(err)
+	}
+	a = approve(t, x.s, a, scopes, 100)
+	token := tokenFor(t, x.s, alice, a, "status", []string{"qq_binding_status"})
+	data, err := x.s.Read(ctx, token.AccessToken, "qq_binding_status", op.Query{})
+	if err != nil || data.QQBinding == nil || !data.QQBinding.Bound || data.QQBinding.Number != "" {
+		t.Fatal(data, err)
+	}
+	if _, err = x.s.Read(ctx, token.AccessToken, "qq_binding_details", op.Query{}); !errors.Is(err, op.ErrForbidden) {
+		t.Fatal(err)
+	}
+	c, code, verifier := consent(t, x.s, bob, a, "details", []string{"qq_binding_details"})
+	if len(c.QQTiers) != 1 || c.QQTiers[0] != "binding_status_and_number" {
+		t.Fatal(c)
+	}
+	details := exchange(t, x.s, a, code, verifier, "")
+	data, err = x.s.Read(ctx, details.AccessToken, "qq_binding_details", op.Query{})
+	if err != nil || data.QQBinding == nil || data.QQBinding.Number != "123456" {
+		t.Fatal(data, err)
+	}
+	if _, err = x.s.Read(ctx, details.AccessToken, "qq_binding_status", op.Query{}); !errors.Is(err, op.ErrForbidden) {
+		t.Fatal(err)
+	}
+	x.source.state.Store(2)
+	for _, v := range []struct{ token, scope string }{{token.AccessToken, "qq_binding_status"}, {details.AccessToken, "qq_binding_details"}} {
+		if _, err = x.s.Read(ctx, v.token, v.scope, op.Query{}); !errors.Is(err, op.ErrUnavailable) {
+			t.Fatal(v.scope, err)
+		}
+	}
+}

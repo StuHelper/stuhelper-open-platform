@@ -98,6 +98,24 @@ func (e ApplicationInputClientType) Valid() bool {
 	}
 }
 
+// Defines values for ConsentQqTiers.
+const (
+	BindingStatus          ConsentQqTiers = "binding_status"
+	BindingStatusAndNumber ConsentQqTiers = "binding_status_and_number"
+)
+
+// Valid indicates whether the value is a known member of the ConsentQqTiers enum.
+func (e ConsentQqTiers) Valid() bool {
+	switch e {
+	case BindingStatus:
+		return true
+	case BindingStatusAndNumber:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConsentDecisionDecision.
 const (
 	ConsentDecisionDecisionApprove ConsentDecisionDecision = "approve"
@@ -244,13 +262,14 @@ func (e ReviewInputDecision) Valid() bool {
 
 // Defines values for Scope.
 const (
-	ScopeCatalog       Scope = "catalog"
-	ScopeProfile       Scope = "profile"
-	ScopePublicReviews Scope = "public_reviews"
-	ScopeQqBinding     Scope = "qq_binding"
-	ScopeSchedule      Scope = "schedule"
-	ScopeSchools       Scope = "schools"
-	ScopeStudentStatus Scope = "student_status"
+	ScopeCatalog          Scope = "catalog"
+	ScopeProfile          Scope = "profile"
+	ScopePublicReviews    Scope = "public_reviews"
+	ScopeQqBindingDetails Scope = "qq_binding_details"
+	ScopeQqBindingStatus  Scope = "qq_binding_status"
+	ScopeSchedule         Scope = "schedule"
+	ScopeSchools          Scope = "schools"
+	ScopeStudentStatus    Scope = "student_status"
 )
 
 // Valid indicates whether the value is a known member of the Scope enum.
@@ -262,7 +281,9 @@ func (e Scope) Valid() bool {
 		return true
 	case ScopePublicReviews:
 		return true
-	case ScopeQqBinding:
+	case ScopeQqBindingDetails:
+		return true
+	case ScopeQqBindingStatus:
 		return true
 	case ScopeSchedule:
 		return true
@@ -376,12 +397,18 @@ type CatalogItem struct {
 
 // Consent defines model for Consent.
 type Consent struct {
-	Application     Application `json:"application"`
-	ExpiresAt       time.Time   `json:"expires_at"`
-	Id              string      `json:"id"`
-	RedirectUri     string      `json:"redirect_uri"`
-	RequestedScopes []Scope     `json:"requested_scopes"`
+	Application Application `json:"application"`
+	ExpiresAt   time.Time   `json:"expires_at"`
+	Id          string      `json:"id"`
+
+	// QqTiers Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested.
+	QqTiers         []ConsentQqTiers `json:"qq_tiers"`
+	RedirectUri     string           `json:"redirect_uri"`
+	RequestedScopes []Scope          `json:"requested_scopes"`
 }
+
+// ConsentQqTiers defines model for Consent.QqTiers.
+type ConsentQqTiers string
 
 // ConsentDecision defines model for ConsentDecision.
 type ConsentDecision struct {
@@ -415,16 +442,20 @@ type Credential struct {
 
 // Data defines model for Data.
 type Data struct {
-	Catalog       *[]CatalogItem  `json:"catalog,omitempty"`
-	Next          *string         `json:"next,omitempty"`
-	Profile       *Profile        `json:"profile,omitempty"`
-	PublicReviews *[]ReviewItem   `json:"public_reviews,omitempty"`
-	QqBinding     *QQBinding      `json:"qq_binding,omitempty"`
-	Schedule      *[]ScheduleItem `json:"schedule,omitempty"`
-	Schools       *[]School       `json:"schools,omitempty"`
-	Scope         Scope           `json:"scope"`
-	StudentStatus *StudentStatus  `json:"student_status,omitempty"`
-	Subject       string          `json:"subject"`
+	Catalog       *[]CatalogItem `json:"catalog,omitempty"`
+	Next          *string        `json:"next,omitempty"`
+	Profile       *Profile       `json:"profile,omitempty"`
+	PublicReviews *[]ReviewItem  `json:"public_reviews,omitempty"`
+
+	// QqBinding For qq_binding_status, number is always omitted. For qq_binding_details, number is present only when bound. Missing or faulty trusted sources return 503.
+	QqBinding *QQBinding      `json:"qq_binding,omitempty"`
+	Schedule  *[]ScheduleItem `json:"schedule,omitempty"`
+	Schools   *[]School       `json:"schools,omitempty"`
+
+	// Scope QQ binding status and QQ binding details are separately requested, approved and consented scopes. Status returns only bound; details returns bound and the bound number. Neither scope implies the other.
+	Scope         Scope          `json:"scope"`
+	StudentStatus *StudentStatus `json:"student_status,omitempty"`
+	Subject       string         `json:"subject"`
 }
 
 // Grant defines model for Grant.
@@ -504,7 +535,7 @@ type Profile struct {
 	Nickname string `json:"nickname"`
 }
 
-// QQBinding defines model for QQBinding.
+// QQBinding For qq_binding_status, number is always omitted. For qq_binding_details, number is present only when bound. Missing or faulty trusted sources return 503.
 type QQBinding struct {
 	Bound  bool    `json:"bound"`
 	Number *string `json:"number,omitempty"`
@@ -570,7 +601,7 @@ type School struct {
 	Name string `json:"name"`
 }
 
-// Scope defines model for Scope.
+// Scope QQ binding status and QQ binding details are separately requested, approved and consented scopes. Status returns only bound; details returns bound and the bound number. Neither scope implies the other.
 type Scope string
 
 // StudentStatus defines model for StudentStatus.
