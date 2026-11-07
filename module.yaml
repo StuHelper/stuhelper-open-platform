@@ -33,7 +33,7 @@ scenario_tests:
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
-  OP-06:
+  OP-10:
     - repair_test.go#TestCodeReplayRevokesIssuedTokenAndProfileIdentifiersArePairwise
   RET-05:
     - repair_test.go#TestCleanupIsBoundedPreservesLiveDataAndRollsBackFailures
