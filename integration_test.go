@@ -427,13 +427,14 @@ func TestHTTPRejectsForgedOwnersAndUsesOAuthExchange(t *testing.T) {
 	if json.Unmarshal(w.Body.Bytes(), &token) != nil {
 		t.Fatal("token JSON")
 	}
-	call("POST", "/token", "", "", form, "application/x-www-form-urlencoded", 400)
 	call("GET", "/data/profile?owner=bob", "Bearer "+token.AccessToken, "", "", "", 400)
 	call("GET", "/data/profile", "Bearer session-alice", "", "", "", 401)
 	w = call("GET", "/data/profile", "Bearer "+token.AccessToken, "", "", "", 200)
 	if strings.Contains(w.Body.String(), "qq_binding") {
 		t.Fatal("scope projection leak")
 	}
+	call("POST", "/token", "", "", form, "application/x-www-form-urlencoded", 400)
+	call("GET", "/data/profile", "Bearer "+token.AccessToken, "", "", "", 401)
 }
 
 func TestSuspensionConsentBindingAndConcurrentQuota(t *testing.T) {
