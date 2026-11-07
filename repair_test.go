@@ -100,7 +100,7 @@ func TestQQTiersRequireIndependentApprovalConsentAndTrustedSource(t *testing.T) 
 	a := apply(t, x.s, dev, "qq", scopes, "public")
 	a = approve(t, x.s, a, []string{"qq_binding_status"}, 100)
 	// An approved status scope cannot be used to request the number tier.
-	_, err := x.s.PrepareConsent(ctx, alice, "unapproved", op.ConsentInput{ClientID: a.ID, RedirectURI: a.RedirectURIs[0], State: "state-bound-to-test-browser", Scopes: []string{"qq_binding_details"}, Challenge: strings.Repeat("a", 43), Method: "S256"})
+	_, err := x.s.PrepareConsent(ctx, alice, "unapproved", op.ConsentInput{ClientID: a.ID, RedirectURI: a.RedirectURIs[0], State: "state-bound-to-test-browser", Scopes: []string{"qq_binding_details"}, Challenge: strings.Repeat("A", 43), Method: "S256"})
 	if !errors.Is(err, op.ErrForbidden) {
 		t.Fatal(err)
 	}
