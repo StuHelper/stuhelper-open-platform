@@ -17,7 +17,7 @@ optional:
     api: 1
   - id: reviews
     api: 1
-  - id: groups
+  - id: qq-binding
     api: 1
 capabilities:
   - open-platform.manage
