@@ -307,7 +307,7 @@ func (t *transaction) SaveReplay(actor, key, digest string, result json.RawMessa
 	return safe(e)
 }
 func (t *transaction) Event(actor, kind, object, key string) error {
-	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.events(actor,kind,object_id,operation) VALUES($1,$2,$3,$4)`, actor, kind, object, key)
+	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.events(actor,kind,object_id,operation,result) VALUES($1,$2,$3,$4,'success')`, actor, kind, object, key)
 	return safe(e)
 }
 func (r *Repository) WorkCandidates(ctx context.Context, now time.Time, limit int) ([]op.GrantRecord, error) {

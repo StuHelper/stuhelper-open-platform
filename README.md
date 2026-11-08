@@ -49,3 +49,19 @@ Cleanup 每类最多清理 100 条、总计最多 600 条，整轮最长 5 秒�
 授权码重放在验证应用、回调和 PKCE 后撤销该授权码签发的令牌。错误证明不能撤销令牌，其他应用授权不受影响。profile.id 与返回 subject 相同，按应用隔离，不返回全局个人主页 ID。
 
 QQ 来源由 qq-binding 提供。三项独立身份全部验证后才返回绑定完成，详情范围仅包含 OneBot 的 QQ 号，不含 openid 或 unionid。任一项解绑后返回未完成且不返回号码；来源故障返回 503。
+
+## 公开审计查询
+
+AUDIT-01：postgres.Repository.ReadAudit(ctx, auditquery.Request) 返回 auditquery.Batch。backend 适配器负责认证，将当前授权与查询范围求交，再传入 Scopes。Repository 按范围并集与全部条件过滤后分页。
+
+时间为左闭右开区间，每次最多 101 条，按时间、模块、ID 字节序降序。Before 使用全局位置。Snapshot 固定 PostgreSQL 已提交成员，排除回填和延迟提交；删除或修改审计使旧快照失效，调用方须重新查询。
+
+摘要只含模块、内部对象和操作者标识、时间、操作、原因、结果与范围。学校或群不明时使用 *，仅对应全局权限可见。没有原因时为空，超出 512 字节或含控制字符的原因省略；无法证明结果时为 unknown。
+
+表结构直接定义最终形态，不转换历史数据。审计与业务同事务写入。运行身份需要读取 audit_retention，清理修订由固定 schema 的触发器更新。快照超过 256 字节或无效时明确报错。
+
+postgres/audit_query_test.go 的 TestPublicAuditQuery 使用独立 PostgreSQL 数据库，验证条件筛选、范围、空原因、unknown、脱敏、回填与延迟提交、清理失效和取消。OpenAPI 路径保持现状，本接口供可信 Go 装配使用。
+
+| 场景 | 验证条件 |
+| --- | --- |
+| AUDIT-01 | 公开审计按授权过滤、稳定分页、脱敏及快照失效；运行身份不能删除审计 |

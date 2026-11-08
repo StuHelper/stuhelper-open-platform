@@ -24,6 +24,8 @@ capabilities:
   - open-platform.data
 capability_requires: {}
 scenario_tests:
+  AUDIT-01:
+    - postgres/audit_query_test.go#TestPublicAuditQuery
   OP-01:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
   OP-11:
