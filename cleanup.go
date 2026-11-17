@@ -21,3 +21,19 @@ func (s *Service) Cleanup(ctx context.Context, limit int) (int, error) {
 	defer cancel()
 	return repo.Cleanup(call, s.now(), limit)
 }
+
+// Backlog inspects pending termination notices and retention cleanup lag within a five-second budget.
+func (s *Service) Backlog(ctx context.Context) (BacklogSummary, error) {
+	if s.Repo == nil {
+		return BacklogSummary{}, ErrUnavailable
+	}
+	repo, ok := s.Repo.(interface {
+		Backlog(context.Context, time.Time) (BacklogSummary, error)
+	})
+	if !ok {
+		return BacklogSummary{}, ErrUnavailable
+	}
+	call, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return repo.Backlog(call, s.now())
+}

@@ -153,6 +153,24 @@ type Acknowledgement struct {
 	Status string `json:"status"`
 	Note   string `json:"note"`
 }
+type CategoryBacklog struct {
+	HasBacklog      bool       `json:"has_backlog"`
+	OldestExpiredAt *time.Time `json:"oldest_expired_at,omitempty"`
+	LagSeconds      int64      `json:"lag_seconds"`
+}
+type BacklogSummary struct {
+	ObservedAt      time.Time       `json:"observed_at"`
+	HasBacklog      bool            `json:"has_backlog"`
+	OldestExpiredAt *time.Time      `json:"oldest_expired_at,omitempty"`
+	MaxLagSeconds   int64           `json:"max_lag_seconds"`
+	PendingNotices  CategoryBacklog `json:"pending_notices"`
+	ExpiredRequests CategoryBacklog `json:"expired_requests"`
+	ExpiredTokens   CategoryBacklog `json:"expired_tokens"`
+	ExpiredConsents CategoryBacklog `json:"expired_consents"`
+	ExpiredEvents   CategoryBacklog `json:"expired_events"`
+	ExpiredNotices  CategoryBacklog `json:"expired_notices"`
+	ExpiredQuotas   CategoryBacklog `json:"expired_quotas"`
+}
 type Page[T any] struct {
 	Items []T    `json:"items"`
 	Next  string `json:"next,omitempty"`

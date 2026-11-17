@@ -42,3 +42,4 @@ scenario_tests:
     - repair_test.go#TestCodeReplayRevokesIssuedTokenAndProfileIdentifiersArePairwise
   RET-05:
     - repair_test.go#TestCleanupIsBoundedPreservesLiveDataAndRollsBackFailures
+    - backlog_test.go#TestBacklogObservesPendingNoticesAndRetentionLag

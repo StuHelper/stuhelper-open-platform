@@ -25,6 +25,7 @@ CREATE INDEX IF NOT EXISTS tokens_consent ON open_platform.tokens((document->>'C
 CREATE INDEX IF NOT EXISTS consents_expiry ON open_platform.consents(expires_at,id);
 CREATE INDEX IF NOT EXISTS events_expiry ON open_platform.events(created_at,id);
 CREATE INDEX IF NOT EXISTS notices_expiry ON open_platform.notices(created_at,id);
+CREATE INDEX IF NOT EXISTS quotas_day ON open_platform.quotas(day,app_id);
 
 
 CREATE TABLE IF NOT EXISTS open_platform.audit_retention(singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton), revision bigint NOT NULL DEFAULT 0);
