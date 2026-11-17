@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 func stringRevision(v int64) string { return strconv.FormatInt(v, 10) }
@@ -169,7 +171,19 @@ func project(scope string, v Data) (Data, error) {
 		if v.Reviews == nil || len(*v.Reviews) > 100 {
 			return out, ErrUnavailable
 		}
-		out.Reviews = v.Reviews
+		items := make([]ReviewItem, 0, len(*v.Reviews))
+		for _, item := range *v.Reviews {
+			if item.ID == "" || !utf8.ValidString(item.TermID) || utf8.RuneCountInString(item.TermID) > 128 || strings.ContainsFunc(item.TermID, unicode.IsControl) {
+				return out, ErrUnavailable
+			}
+			for _, rating := range item.Ratings {
+				if rating < 0 || rating > 10 {
+					return out, ErrUnavailable
+				}
+			}
+			items = append(items, item)
+		}
+		out.Reviews = &items
 	default:
 		return out, ErrInput
 	}

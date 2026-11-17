@@ -54,6 +54,16 @@ func (s *source) Read(ctx context.Context, owner, scope string, q op.Query) (op.
 		return op.Data{Profile: &op.Profile{ID: "public-" + owner, Nickname: owner, Bio: "Synthetic profile"}, QQBinding: &op.QQBinding{Bound: true, Number: "123456"}}, nil
 	case "qq_binding_status", "qq_binding_details":
 		return op.Data{QQBinding: &op.QQBinding{Bound: true, Number: "123456"}}, nil
+	case "public_reviews":
+		term := q.TermID
+		if term == "" {
+			term = "2024-fall"
+		}
+		items := []op.ReviewItem{
+			{ID: "rev-1", Kind: "course", TargetID: "course-1", TermID: term, Body: "Synthetic course review", Ratings: [5]int{8, 8, 6, 6, 8}, CreatedAt: time.Unix(1700000000, 0).UTC()},
+			{ID: "rev-2", Kind: "mentor", TargetID: "teacher-1", Body: "Synthetic mentor review", Ratings: [5]int{0, 0, 0, 0, 0}, CreatedAt: time.Unix(1700000100, 0).UTC()},
+		}
+		return op.Data{Reviews: &items}, nil
 	default:
 		return op.Data{StudentStatus: &op.StudentStatus{Verified: true, EvaluatedAt: time.Now()}}, nil
 	}
@@ -419,8 +429,8 @@ func TestHTTPRejectsForgedOwnersAndUsesOAuthExchange(t *testing.T) {
 	call("GET", "/apps", "", "", "", "", 401)
 	call("POST", "/apps", "Bearer session-alice", "forged", `{"name":"X","purpose":"test","redirect_uris":["https://x.example/cb"],"requested_scopes":["profile"],"client_type":"public","owner":"bob"}`, "application/json", 400)
 	call("GET", "/apps?limit=101", "Bearer session-alice", "", "", "", 400)
-	a := approve(t, s, apply(t, s, dev, "app", []string{"profile"}, "public"), []string{"profile"}, 100)
-	_, code, v := consent(t, s, alice, a, "http", []string{"profile"})
+	a := approve(t, s, apply(t, s, dev, "app", []string{"profile", "public_reviews"}, "public"), []string{"profile", "public_reviews"}, 100)
+	_, code, v := consent(t, s, alice, a, "http", []string{"profile", "public_reviews"})
 	form := url.Values{"grant_type": {"authorization_code"}, "client_id": {a.ID}, "redirect_uri": {a.RedirectURIs[0]}, "code": {code}, "code_verifier": {v}}.Encode()
 	w := call("POST", "/token", "", "", form, "application/x-www-form-urlencoded", 200)
 	var token op.Token
@@ -432,6 +442,11 @@ func TestHTTPRejectsForgedOwnersAndUsesOAuthExchange(t *testing.T) {
 	w = call("GET", "/data/profile", "Bearer "+token.AccessToken, "", "", "", 200)
 	if strings.Contains(w.Body.String(), "qq_binding_details") {
 		t.Fatal("scope projection leak")
+	}
+	revW := call("GET", "/data/public_reviews", "Bearer "+token.AccessToken, "", "", "", 200)
+	var revData op.Data
+	if json.Unmarshal(revW.Body.Bytes(), &revData) != nil || revData.Reviews == nil || len(*revData.Reviews) != 2 || (*revData.Reviews)[0].TermID != "2024-fall" || (*revData.Reviews)[1].TermID != "" {
+		t.Fatalf("unexpected public_reviews data: %+v (%s)", revData, revW.Body.String())
 	}
 	call("POST", "/token", "", "", form, "application/x-www-form-urlencoded", 400)
 	call("GET", "/data/profile", "Bearer "+token.AccessToken, "", "", "", 401)
