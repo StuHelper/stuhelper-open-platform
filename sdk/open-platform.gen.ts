@@ -211,8 +211,42 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。停用后仍可查询；分页最多 100 条。 */
+        /** @description 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。支持 pending_ack 筛选尚未提交删除或法定保留声明的通知。停用或归档后仍可查询；分页最多 100 条。 */
         get: operations["listNotices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-platform/apps/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description 开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。 */
+        post: operations["archiveApplication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-platform/admin/notices/overdue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 管理后台巡检超过约定天数仍未提交 deleted 或 retention_exception 回执的应用列表，按最早逾期通知时间升序分页。 */
+        get: operations["listOverdueNoticeApplications"];
         put?: never;
         post?: never;
         delete?: never;
@@ -245,7 +279,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。 */
+        /** @description 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额并通过响应头返回余量，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。 */
         get: operations["readAuthorizedData"];
         put?: never;
         post?: never;
@@ -299,6 +333,13 @@ export interface components {
             /** Format: int64 */
             credential_revision: number;
             policy: components["schemas"]["Policy"];
+            /** @description 应用在当前 UTC 日已消耗的数据读取配额；查看本人单应用详情时返回。 */
+            quota_used?: number;
+            /**
+             * Format: date-time
+             * @description 开发者主动归档应用的时间；归档满 12 个月后随数据保留清理释放配额。
+             */
+            archived_at?: string;
             /** Format: date-time */
             created_at: string;
         };
@@ -418,6 +459,20 @@ export interface components {
         };
         Notices: {
             items: components["schemas"]["Notice"][];
+            next?: string;
+        };
+        OverdueNoticeApplication: {
+            app_id: string;
+            app_name: string;
+            owner: string;
+            /** @enum {string} */
+            state: "pending" | "changes_requested" | "active" | "suspended";
+            overdue_notices: number;
+            /** Format: date-time */
+            oldest_notice_at: string;
+        };
+        OverdueNoticeApplications: {
+            items: components["schemas"]["OverdueNoticeApplication"][];
             next?: string;
         };
         StudentStatus: {
@@ -1654,6 +1709,8 @@ export interface operations {
     listNotices: {
         parameters: {
             query?: {
+                /** @description 为 true 时仅返回尚未回报 deleted 或 retention_exception 的通知。 */
+                pending_ack?: boolean;
                 after?: string;
                 limit?: number;
             };
@@ -1672,6 +1729,185 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Notices"];
+                };
+            };
+            /** @description 输入无效 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 身份或令牌无效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 权限不足 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 对象不存在或不属于本人 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 修订或幂等冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 调用配额用尽 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 依赖不可用 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    archiveApplication: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Revision"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Application"];
+                };
+            };
+            /** @description 输入无效 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 身份或令牌无效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 权限不足 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 对象不存在或不属于本人 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 修订或幂等冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 调用配额用尽 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 依赖不可用 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listOverdueNoticeApplications: {
+        parameters: {
+            query?: {
+                /** @description 判定为逾期的最小天数。 */
+                older_than_days?: number;
+                after?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverdueNoticeApplications"];
                 };
             };
             /** @description 输入无效 */
@@ -1860,6 +2096,10 @@ export interface operations {
             /** @description 成功 */
             200: {
                 headers: {
+                    /** @description 应用当日 UTC 调用配额上限。 */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description 应用当日 UTC 剩余调用配额。 */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {

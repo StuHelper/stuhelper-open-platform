@@ -36,9 +36,13 @@ scenario_tests:
   OP-03:
     - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
+    - governance_test.go#TestQuotaHeadersPendingAckOverdueInspectionAndArchiveRetention
+  OP-09:
+    - governance_test.go#TestQuotaHeadersPendingAckOverdueInspectionAndArchiveRetention
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
   OP-10:
     - repair_test.go#TestCodeReplayRevokesIssuedTokenAndProfileIdentifiersArePairwise
   RET-05:
     - repair_test.go#TestCleanupIsBoundedPreservesLiveDataAndRollsBackFailures
+    - governance_test.go#TestQuotaHeadersPendingAckOverdueInspectionAndArchiveRetention

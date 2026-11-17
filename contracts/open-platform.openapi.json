@@ -1502,7 +1502,7 @@
     "/api/v1/open-platform/apps/{id}/notices": {
       "get": {
         "operationId": "listNotices",
-        "description": "使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。停用后仍可查询；分页最多 100 条。",
+        "description": "使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。支持 pending_ack 筛选尚未提交删除或法定保留声明的通知。停用或归档后仍可查询；分页最多 100 条。",
         "security": [
           {
             "clientCredential": []
@@ -1595,6 +1595,15 @@
         },
         "parameters": [
           {
+            "name": "pending_ack",
+            "in": "query",
+            "description": "为 true 时仅返回尚未回报 deleted 或 retention_exception 的通知。",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
             "name": "after",
             "in": "query",
             "schema": {
@@ -1619,6 +1628,254 @@
             "schema": {
               "type": "string",
               "maxLength": 128
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/apps/{id}/archive": {
+      "post": {
+        "operationId": "archiveApplication",
+        "description": "开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "身份或令牌无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在或不属于本人",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "修订或幂等冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "调用配额用尽",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "依赖不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Revision"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/admin/notices/overdue": {
+      "get": {
+        "operationId": "listOverdueNoticeApplications",
+        "description": "管理后台巡检超过约定天数仍未提交 deleted 或 retention_exception 回执的应用列表，按最早逾期通知时间升序分页。",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverdueNoticeApplications"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "身份或令牌无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在或不属于本人",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "修订或幂等冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "调用配额用尽",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "依赖不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "older_than_days",
+            "in": "query",
+            "description": "判定为逾期的最小天数。",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 7
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
             }
           }
         ]
@@ -1763,7 +2020,7 @@
     "/api/v1/open-platform/data/{scope}": {
       "get": {
         "operationId": "readAuthorizedData",
-        "description": "仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。",
+        "description": "仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额并通过响应头返回余量，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。",
         "security": [
           {
             "businessToken": []
@@ -1772,6 +2029,22 @@
         "responses": {
           "200": {
             "description": "成功",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "应用当日 UTC 调用配额上限。",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "应用当日 UTC 剩余调用配额。",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2115,6 +2388,16 @@
           },
           "policy": {
             "$ref": "#/components/schemas/Policy"
+          },
+          "quota_used": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "应用在当前 UTC 日已消耗的数据读取配额；查看本人单应用详情时返回。"
+          },
+          "archived_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "开发者主动归档应用的时间；归档满 12 个月后随数据保留清理释放配额。"
           },
           "created_at": {
             "type": "string",
@@ -2632,6 +2915,69 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Notice"
+            },
+            "maxItems": 100
+          },
+          "next": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "OverdueNoticeApplication": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "app_id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "app_name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "owner": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "changes_requested",
+              "active",
+              "suspended"
+            ]
+          },
+          "overdue_notices": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "oldest_notice_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "app_id",
+          "app_name",
+          "owner",
+          "state",
+          "overdue_notices",
+          "oldest_notice_at"
+        ]
+      },
+      "OverdueNoticeApplications": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverdueNoticeApplication"
             },
             "maxItems": 100
           },

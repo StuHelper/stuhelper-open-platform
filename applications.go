@@ -1,6 +1,9 @@
 package openplatform
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in ApplicationInput) (Application, error) {
 	var out Application
@@ -39,7 +42,7 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 				if a.Owner != p.Owner {
 					return out, ErrNotFound
 				}
-				if a.View.State == "active" || a.View.Revision != in.Revision {
+				if a.View.State == "active" || a.View.ArchivedAt != nil || a.View.Revision != in.Revision {
 					return out, ErrConflict
 				}
 				a.View.Revision++
@@ -75,8 +78,49 @@ func (s *Service) Application(ctx context.Context, p Principal, id string) (Appl
 		if a.Owner != p.Owner && !p.Admin {
 			return ErrNotFound
 		}
+		used, e := t.QuotaUsed(id, s.now().Format("2006-01-02"))
+		if e != nil {
+			return e
+		}
 		out = a.View
+		out.QuotaUsed = &used
 		return nil
+	})
+	return out, e
+}
+func (s *Service) Archive(ctx context.Context, p Principal, id, key string, revision int64) (Application, error) {
+	var out Application
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if revision < 1 {
+		return out, ErrInput
+	}
+	e := s.transaction(ctx, p.Owner, id, func(t Transaction) error {
+		if e := s.activeOwner(t, p.Owner); e != nil {
+			return e
+		}
+		a, e := t.App(id)
+		if e != nil {
+			return e
+		}
+		if a.Owner != p.Owner {
+			return ErrNotFound
+		}
+		out, e = replay(t, p.Owner, key, "archive:"+id, revision, func() (Application, error) {
+			if a.View.ArchivedAt != nil || a.View.Revision != revision {
+				return out, ErrConflict
+			}
+			now := s.now().Truncate(time.Microsecond)
+			a.View.State = "suspended"
+			a.View.ArchivedAt = &now
+			a.View.Revision++
+			if e = t.SaveApp(a); e != nil {
+				return out, e
+			}
+			return a.View, nil
+		})
+		return e
 	})
 	return out, e
 }
@@ -141,7 +185,7 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 			if e = s.activeOwner(t, a.Owner); e != nil {
 				return out, e
 			}
-			if a.View.Revision != in.Revision {
+			if a.View.ArchivedAt != nil || a.View.Revision != in.Revision {
 				return out, ErrConflict
 			}
 			if !subset(in.ApprovedScopes, a.View.RequestedScopes) {

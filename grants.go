@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 func (s *Service) grantReason(t Transaction, g GrantRecord, a AppRecord) (string, error) {
@@ -196,6 +198,9 @@ func (s *Service) Work(ctx context.Context, limit int) (int, error) {
 	return done, nil
 }
 func (s *Service) Notices(ctx context.Context, p Principal, app, secret, after string, limit int) (Page[Notice], error) {
+	return s.ListNotices(ctx, p, app, secret, false, after, limit)
+}
+func (s *Service) ListNotices(ctx context.Context, p Principal, app, secret string, pendingAck bool, after string, limit int) (Page[Notice], error) {
 	var out Page[Notice]
 	if after != "" {
 		n, e := strconv.ParseInt(after, 10, 64)
@@ -211,7 +216,7 @@ func (s *Service) Notices(ctx context.Context, p Principal, app, secret, after s
 		if _, e := authenticatedApp(t, p, app, secret); e != nil {
 			return e
 		}
-		rows, e := t.Notices(app, after, limit+1)
+		rows, e := t.Notices(app, pendingAck, after, limit+1)
 		if e != nil {
 			return e
 		}
@@ -226,6 +231,59 @@ func (s *Service) Notices(ctx context.Context, p Principal, app, secret, after s
 				out.Items[i] = n
 			}
 		}
+		return nil
+	})
+	return out, e
+}
+func parseOverdueCursor(after string) (OverdueCursor, error) {
+	if after == "" {
+		return OverdueCursor{}, nil
+	}
+	rawMicros, appID, ok := strings.Cut(after, "|")
+	if !ok || appID == "" || !utf8.ValidString(appID) || strings.ContainsFunc(appID, unicode.IsControl) {
+		return OverdueCursor{}, ErrInput
+	}
+	micros, e := strconv.ParseInt(rawMicros, 10, 64)
+	if e != nil {
+		return OverdueCursor{}, ErrInput
+	}
+	return OverdueCursor{Set: true, OldestNoticeAt: time.UnixMicro(micros).UTC(), AppID: appID}, nil
+}
+func formatOverdueCursor(v OverdueNoticeApplication) string {
+	return strconv.FormatInt(v.OldestNoticeAt.UTC().UnixMicro(), 10) + "|" + v.AppID
+}
+func (s *Service) OverdueNoticeApplications(ctx context.Context, p Principal, olderThanDays int, after string, limit int) (Page[OverdueNoticeApplication], error) {
+	var out Page[OverdueNoticeApplication]
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !p.Admin {
+		return out, ErrForbidden
+	}
+	if olderThanDays == 0 {
+		olderThanDays = 7
+	}
+	if olderThanDays < 1 || olderThanDays > 365 {
+		return out, ErrInput
+	}
+	limit, e := pagination(after, limit)
+	if e != nil {
+		return out, e
+	}
+	cursor, e := parseOverdueCursor(after)
+	if e != nil {
+		return out, e
+	}
+	cutoff := s.now().Add(-time.Duration(olderThanDays) * 24 * time.Hour)
+	e = s.transaction(ctx, p.Owner, "", func(t Transaction) error {
+		if e := s.activeOwner(t, p.Owner); e != nil {
+			return e
+		}
+		rows, e := t.OverdueNoticeApps(cutoff, cursor, limit+1)
+		if e != nil {
+			return e
+		}
+		out = page(rows, limit, formatOverdueCursor)
 		return nil
 	})
 	return out, e

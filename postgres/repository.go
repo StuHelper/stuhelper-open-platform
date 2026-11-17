@@ -124,17 +124,22 @@ func (t *transaction) CloseOwner(owner, id string) error {
 func (t *transaction) App(id string) (op.AppRecord, error) {
 	var out op.AppRecord
 	var raw []byte
-	e := t.tx.QueryRowContext(t.ctx, `SELECT owner_key,secret_hash,document FROM open_platform.apps WHERE id=$1`, id).Scan(&out.Owner, &out.SecretHash, &raw)
+	var archivedAt sql.NullTime
+	e := t.tx.QueryRowContext(t.ctx, `SELECT owner_key,secret_hash,archived_at,document FROM open_platform.apps WHERE id=$1`, id).Scan(&out.Owner, &out.SecretHash, &archivedAt, &raw)
 	if e != nil {
 		return out, safe(e)
 	}
 	if json.Unmarshal(raw, &out.View) != nil {
 		return out, op.ErrUnavailable
 	}
+	if archivedAt.Valid {
+		at := archivedAt.Time.UTC()
+		out.View.ArchivedAt = &at
+	}
 	return out, nil
 }
 func (t *transaction) Apps(owner string, admin bool, after string, limit int) ([]op.AppRecord, error) {
-	rows, e := t.tx.QueryContext(t.ctx, `SELECT owner_key,secret_hash,document FROM open_platform.apps WHERE ($2 OR owner_key=$1) AND id>$3 ORDER BY id LIMIT $4`, owner, admin, after, limit)
+	rows, e := t.tx.QueryContext(t.ctx, `SELECT owner_key,secret_hash,archived_at,document FROM open_platform.apps WHERE ($2 OR owner_key=$1) AND id>$3 ORDER BY id LIMIT $4`, owner, admin, after, limit)
 	if e != nil {
 		return nil, safe(e)
 	}
@@ -143,22 +148,29 @@ func (t *transaction) Apps(owner string, admin bool, after string, limit int) ([
 	for rows.Next() {
 		var a op.AppRecord
 		var b []byte
-		if e = rows.Scan(&a.Owner, &a.SecretHash, &b); e != nil {
+		var archivedAt sql.NullTime
+		if e = rows.Scan(&a.Owner, &a.SecretHash, &archivedAt, &b); e != nil {
 			return nil, safe(e)
 		}
 		if json.Unmarshal(b, &a.View) != nil {
 			return nil, op.ErrUnavailable
+		}
+		if archivedAt.Valid {
+			at := archivedAt.Time.UTC()
+			a.View.ArchivedAt = &at
 		}
 		out = append(out, a)
 	}
 	return out, safe(rows.Err())
 }
 func (t *transaction) SaveApp(a op.AppRecord) error {
-	raw, e := encode(a.View)
+	view := a.View
+	view.QuotaUsed = nil
+	raw, e := encode(view)
 	if e != nil {
 		return op.ErrUnavailable
 	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,document=EXCLUDED.document`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, raw)
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps(id,owner_key,state,revision,secret_hash,archived_at,document) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,archived_at=EXCLUDED.archived_at,document=EXCLUDED.document`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, a.View.ArchivedAt, raw)
 	return safe(e)
 }
 func (t *transaction) CountApps(owner string) (int, error) {
@@ -261,19 +273,24 @@ func (r *Repository) LocateToken(ctx context.Context, h string) (op.TokenRecord,
 	g, e := r.LocateGrant(ctx, v.GrantID)
 	return v, g, e
 }
-func (t *transaction) Quota(app, day string, limit int) error {
+func (t *transaction) Quota(app, day string, limit int) (int, error) {
 	var n int
 	e := t.tx.QueryRowContext(t.ctx, `INSERT INTO open_platform.quotas VALUES($1,$2,1) ON CONFLICT(app_id,day) DO UPDATE SET used=open_platform.quotas.used+1 WHERE open_platform.quotas.used<$3 RETURNING used`, app, day, limit).Scan(&n)
 	if errors.Is(e, sql.ErrNoRows) {
-		return op.ErrQuota
+		return limit, op.ErrQuota
 	}
-	return safe(e)
+	return n, safe(e)
+}
+func (t *transaction) QuotaUsed(app, day string) (int, error) {
+	var n int
+	e := t.tx.QueryRowContext(t.ctx, `SELECT COALESCE((SELECT used FROM open_platform.quotas WHERE app_id=$1 AND day=$2),0)`, app, day).Scan(&n)
+	return n, safe(e)
 }
 func (t *transaction) Notice(id string) (op.Notice, error) {
 	return decode[op.Notice](t.tx.QueryRowContext(t.ctx, `SELECT jsonb_set(document,'{sequence}',to_jsonb(position)) FROM open_platform.notices WHERE id=$1`, id))
 }
-func (t *transaction) Notices(app, after string, limit int) ([]op.Notice, error) {
-	rows, e := t.tx.QueryContext(t.ctx, `SELECT jsonb_set(document,'{sequence}',to_jsonb(position)) FROM open_platform.notices WHERE app_id=$1 AND position>COALESCE(NULLIF($2,'')::bigint,0) ORDER BY position LIMIT $3`, app, after, limit)
+func (t *transaction) Notices(app string, pendingAck bool, after string, limit int) ([]op.Notice, error) {
+	rows, e := t.tx.QueryContext(t.ctx, `SELECT jsonb_set(document,'{sequence}',to_jsonb(position)) FROM open_platform.notices WHERE app_id=$1 AND position>COALESCE(NULLIF($2,'')::bigint,0) AND (NOT $3 OR COALESCE(document->>'acknowledgement','') NOT IN ('deleted','retention_exception')) ORDER BY position LIMIT $4`, app, after, pendingAck, limit)
 	if e != nil {
 		return nil, safe(e)
 	}
@@ -284,6 +301,36 @@ func (t *transaction) Notices(app, after string, limit int) ([]op.Notice, error)
 		if e != nil {
 			return nil, e
 		}
+		out = append(out, v)
+	}
+	return out, safe(rows.Err())
+}
+func (t *transaction) OverdueNoticeApps(cutoff time.Time, cursor op.OverdueCursor, limit int) ([]op.OverdueNoticeApplication, error) {
+	rows, e := t.tx.QueryContext(t.ctx, `
+WITH grouped AS (
+	SELECT n.app_id, count(*)::int AS overdue_notices, min(n.created_at) AS oldest_notice_at
+	FROM open_platform.notices n
+	WHERE COALESCE(n.document->>'acknowledgement','') NOT IN ('deleted','retention_exception')
+	  AND n.created_at <= $1
+	GROUP BY n.app_id
+)
+SELECT g.app_id, COALESCE(a.document->>'name',''), a.owner_key, a.state, g.overdue_notices, g.oldest_notice_at
+FROM grouped g
+JOIN open_platform.apps a ON a.id=g.app_id
+WHERE NOT $2 OR g.oldest_notice_at>$3 OR (g.oldest_notice_at=$3 AND g.app_id>$4)
+ORDER BY g.oldest_notice_at ASC, g.app_id ASC
+LIMIT $5`, cutoff, cursor.Set, cursor.OldestNoticeAt, cursor.AppID, limit)
+	if e != nil {
+		return nil, safe(e)
+	}
+	defer rows.Close()
+	out := []op.OverdueNoticeApplication{}
+	for rows.Next() {
+		var v op.OverdueNoticeApplication
+		if e = rows.Scan(&v.AppID, &v.AppName, &v.Owner, &v.State, &v.OverdueNotices, &v.OldestNoticeAt); e != nil {
+			return nil, safe(e)
+		}
+		v.OldestNoticeAt = v.OldestNoticeAt.UTC()
 		out = append(out, v)
 	}
 	return out, safe(rows.Err())
