@@ -55,6 +55,40 @@ type Application struct {
 type AppRecord struct {
 	View              Application
 	Owner, SecretHash string
+	UpdatedAt         time.Time
+	ReviewedBy        string
+	ReviewedAt        *time.Time
+}
+type AdminApplication struct {
+	ID                 string     `json:"id"`
+	Owner              string     `json:"owner"`
+	Name               string     `json:"name"`
+	Purpose            string     `json:"purpose"`
+	RedirectURIs       []string   `json:"redirect_uris"`
+	RequestedScopes    []string   `json:"requested_scopes"`
+	ApprovedScopes     []string   `json:"approved_scopes"`
+	ClientType         string     `json:"client_type"`
+	State              string     `json:"state"`
+	Note               string     `json:"note"`
+	Revision           int64      `json:"revision"`
+	CredentialRevision int64      `json:"credential_revision"`
+	Policy             Policy     `json:"policy"`
+	ActiveGrants       int        `json:"active_grants"`
+	ReviewedBy         string     `json:"reviewed_by,omitempty"`
+	ReviewedAt         *time.Time `json:"reviewed_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+type AdminAppFilter struct {
+	State string
+	Owner string
+	After string
+	Limit int
+}
+type AppCursor struct {
+	Set       bool
+	UpdatedAt time.Time
+	ID        string
 }
 type ReviewInput struct {
 	Revision       int64    `json:"revision"`
@@ -244,9 +278,11 @@ type Transaction interface {
 	CloseOwner(string, string) error
 	App(string) (AppRecord, error)
 	Apps(string, bool, string, int) ([]AppRecord, error)
+	AdminApp(string, time.Time) (AdminApplication, error)
+	AdminApps(string, string, time.Time, AppCursor, int) ([]AdminApplication, error)
 	SaveApp(AppRecord) error
 	CountApps(string) (int, error)
-	SuspendOwnedApps(string) error
+	SuspendOwnedApps(string, time.Time) error
 	Consent(string) (ConsentRecord, error)
 	PendingConsents(string, time.Time) (int, error)
 	SaveConsent(ConsentRecord) error

@@ -109,10 +109,14 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		failure(w, op.ErrInput)
 		return
 	}
-	after, limit, e := queryPage(r)
-	if e != nil {
-		failure(w, e)
-		return
+	var after string
+	var limit int
+	if !(path == "admin/apps" && r.Method == "GET") {
+		after, limit, e = queryPage(r)
+		if e != nil {
+			failure(w, e)
+			return
+		}
 	}
 	switch {
 	case path == "apps" && r.Method == "POST":
@@ -123,7 +127,13 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case path == "apps" && r.Method == "GET":
 		result, e = h.Service.Applications(r.Context(), p, false, after, limit)
 	case path == "admin/apps" && r.Method == "GET":
-		result, e = h.Service.Applications(r.Context(), p, true, after, limit)
+		var f op.AdminAppFilter
+		f, e = queryAdminApps(r)
+		if e == nil {
+			result, e = h.Service.AdminApplications(r.Context(), p, f)
+		}
+	case len(parts) == 3 && parts[0] == "admin" && parts[1] == "apps" && r.Method == "GET":
+		result, e = h.Service.AdminApplication(r.Context(), p, parts[2])
 	case len(parts) == 2 && parts[0] == "apps" && r.Method == "GET":
 		result, e = h.Service.Application(r.Context(), p, parts[1])
 	case len(parts) == 3 && parts[0] == "apps" && parts[2] == "submit" && r.Method == "POST":
@@ -193,6 +203,23 @@ func queryPage(r *http.Request) (string, int, error) {
 		limit = n
 	}
 	return r.URL.Query().Get("after"), limit, nil
+}
+func queryAdminApps(r *http.Request) (op.AdminAppFilter, error) {
+	for k, v := range r.URL.Query() {
+		if !slices.Contains([]string{"state", "owner", "after", "limit"}, k) || len(v) != 1 {
+			return op.AdminAppFilter{}, op.ErrInput
+		}
+	}
+	limit := 50
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		n, e := strconv.Atoi(raw)
+		if e != nil {
+			return op.AdminAppFilter{}, op.ErrInput
+		}
+		limit = n
+	}
+	q := r.URL.Query()
+	return op.AdminAppFilter{State: q.Get("state"), Owner: q.Get("owner"), After: q.Get("after"), Limit: limit}, nil
 }
 func (h Handler) token(w http.ResponseWriter, r *http.Request) {
 	bad := func(code string, status int) { write(w, status, map[string]string{"error": code}) }

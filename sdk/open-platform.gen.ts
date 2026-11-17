@@ -28,7 +28,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。 */
         get: operations["listApplications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-platform/admin/apps/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。 */
+        get: operations["getAdminApplication"];
         put?: never;
         post?: never;
         delete?: never;
@@ -412,6 +430,42 @@ export interface components {
             items: components["schemas"]["Application"][];
             next?: string;
         };
+        AdminApplication: {
+            id: string;
+            owner: string;
+            name: string;
+            purpose: string;
+            redirect_uris: string[];
+            requested_scopes: components["schemas"]["Scope"][];
+            approved_scopes: components["schemas"]["Scope"][];
+            /** @enum {string} */
+            client_type: "public" | "confidential";
+            /** @enum {string} */
+            state: "pending" | "changes_requested" | "active" | "suspended";
+            note: string;
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            credential_revision: number;
+            policy: components["schemas"]["Policy"];
+            /** @description 当前仍处于有效期的用户授权数量。 */
+            active_grants: number;
+            /** @description 最近一次执行审批或停用操作的管理员账号标识。 */
+            reviewed_by?: string;
+            /**
+             * Format: date-time
+             * @description 最近一次执行审批或停用操作的时间。
+             */
+            reviewed_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AdminApplications: {
+            items: components["schemas"]["AdminApplication"][];
+            next?: string;
+        };
         Grants: {
             items: components["schemas"]["Grant"][];
             next?: string;
@@ -681,6 +735,10 @@ export interface operations {
     listApplications: {
         parameters: {
             query?: {
+                /** @description 按应用审批状态筛选。 */
+                state?: "pending" | "changes_requested" | "active" | "suspended";
+                /** @description 按开发者账号标识精确筛选。 */
+                owner?: string;
                 after?: string;
                 limit?: number;
             };
@@ -696,7 +754,92 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Applications"];
+                    "application/json": components["schemas"]["AdminApplications"];
+                };
+            };
+            /** @description 输入无效 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 身份或令牌无效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 权限不足 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 对象不存在或不属于本人 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 修订或幂等冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 调用配额用尽 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 依赖不可用 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminApplication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminApplication"];
                 };
             };
             /** @description 输入无效 */
