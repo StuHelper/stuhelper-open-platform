@@ -49,14 +49,48 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 			if e != nil {
 				return out, e
 			}
-			out = Consent{QQTiers: qqTiers(in.Scopes), ID: id, Application: a.View, Scopes: in.Scopes, RedirectURI: in.RedirectURI, ExpiresAt: s.now().Add(5 * time.Minute)}
-			out.Application.Note = ""
-			e = t.SaveConsent(ConsentRecord{View: out, Owner: p.Owner, Input: in})
+			activeScopes, activeExpiresAt, e := s.activeGrantSnapshot(t, p.Owner, a)
+			if e != nil {
+				return out, e
+			}
+			out = Consent{
+				QQTiers:              qqTiers(in.Scopes),
+				ID:                   id,
+				Application:          ConsentApplication{ID: a.View.ID, Name: a.View.Name, Purpose: a.View.Purpose, ClientType: a.View.ClientType, GrantSeconds: a.View.Policy.GrantSeconds},
+				Scopes:               in.Scopes,
+				ActiveGrantedScopes:  activeScopes,
+				ActiveGrantExpiresAt: activeExpiresAt,
+				RedirectURI:          in.RedirectURI,
+				ExpiresAt:            s.now().Add(5 * time.Minute),
+			}
+			e = t.SaveConsent(ConsentRecord{View: out, Owner: p.Owner, AppRevision: a.View.Revision, Input: in})
 			return out, e
 		})
 		return e
 	})
 	return out, e
+}
+func (s *Service) activeGrantSnapshot(t Transaction, owner string, a AppRecord) ([]string, *time.Time, error) {
+	g, e := t.OwnerGrant(owner, a.View.ID)
+	if errors.Is(e, ErrNotFound) {
+		return []string{}, nil, nil
+	}
+	if e != nil {
+		return nil, nil, e
+	}
+	reason, e := s.grantReason(t, g, a)
+	if e != nil {
+		return nil, nil, e
+	}
+	if g.View.State != "active" || reason != "" {
+		return []string{}, nil, nil
+	}
+	scopes := intersection(g.View.Scopes, a.View.ApprovedScopes)
+	if len(scopes) == 0 {
+		return []string{}, nil, nil
+	}
+	expiresAt := g.View.ExpiresAt
+	return scopes, &expiresAt, nil
 }
 func (s *Service) Consent(ctx context.Context, p Principal, id string) (Consent, error) {
 	var out Consent
@@ -75,6 +109,24 @@ func (s *Service) Consent(ctx context.Context, p Principal, id string) (Consent,
 			return ErrConflict
 		}
 		out = c.View
+		if out.ActiveGrantedScopes == nil {
+			out.ActiveGrantedScopes = []string{}
+		}
+		a, e := t.App(c.Input.ClientID)
+		if e != nil {
+			return e
+		}
+		if a.View.State != "active" || (c.AppRevision != 0 && a.View.Revision != c.AppRevision) {
+			out.ActiveGrantedScopes = []string{}
+			out.ActiveGrantExpiresAt = nil
+			return nil
+		}
+		activeScopes, activeExpiresAt, e := s.activeGrantSnapshot(t, p.Owner, a)
+		if e != nil {
+			return e
+		}
+		out.ActiveGrantedScopes = activeScopes
+		out.ActiveGrantExpiresAt = activeExpiresAt
 		return nil
 	})
 	return out, e
@@ -87,6 +139,14 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 	if !validOwner(p.Owner) {
 		return out, ErrUnauthenticated
 	}
+	mode := in.Mode
+	if mode == "" {
+		mode = "merge"
+	}
+	if mode != "merge" && mode != "replace" {
+		return out, ErrInput
+	}
+	in.Mode = mode
 	var e error
 	in.Scopes, e = validateScopes(in.Scopes, in.Decision == "deny")
 	if e != nil || (in.Decision != "approve" && in.Decision != "deny") || (in.Decision == "deny" && len(in.Scopes) != 0) {
@@ -116,11 +176,8 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 			if e != nil {
 				return out, e
 			}
-			if a.View.Revision != c.View.Application.Revision {
+			if c.AppRevision != 0 && a.View.Revision != c.AppRevision {
 				return out, ErrConflict
-			}
-			if !subset(in.Scopes, c.Input.Scopes) || !subset(in.Scopes, a.View.ApprovedScopes) {
-				return out, ErrForbidden
 			}
 			u, _ := url.Parse(c.Input.RedirectURI)
 			q := u.Query()
@@ -129,13 +186,39 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 			c.Decision = in.Decision
 			c.Selected = in.Scopes
 			if in.Decision == "deny" {
+				if !subset(in.Scopes, c.Input.Scopes) || !subset(in.Scopes, a.View.ApprovedScopes) {
+					return out, ErrForbidden
+				}
 				q.Set("error", "access_denied")
 			} else {
-				g, e := t.OwnerGrant(p.Owner, a.View.ID)
-				if e != nil && !errors.Is(e, ErrNotFound) {
-					return out, e
+				now := s.now().Truncate(time.Microsecond)
+				g, gErr := t.OwnerGrant(p.Owner, a.View.ID)
+				if gErr != nil && !errors.Is(gErr, ErrNotFound) {
+					return out, gErr
 				}
-				if errors.Is(e, ErrNotFound) {
+				existingActive := []string{}
+				priorReason := ""
+				if gErr == nil && g.View.State == "active" {
+					priorReason, e = s.grantReason(t, g, a)
+					if e != nil {
+						return out, e
+					}
+					if priorReason == "" {
+						existingActive = intersection(g.View.Scopes, a.View.ApprovedScopes)
+					}
+				}
+				allowedScopes := c.Input.Scopes
+				if mode == "replace" {
+					allowedScopes = union(c.Input.Scopes, existingActive)
+				}
+				if !subset(in.Scopes, allowedScopes) || !subset(in.Scopes, a.View.ApprovedScopes) {
+					return out, ErrForbidden
+				}
+				nextScopes := in.Scopes
+				if mode == "merge" && len(existingActive) > 0 {
+					nextScopes = union(existingActive, in.Scopes)
+				}
+				if errors.Is(gErr, ErrNotFound) {
 					gid, e := s.random()
 					if e != nil {
 						return out, e
@@ -144,37 +227,38 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 					if e != nil {
 						return out, e
 					}
-					g = GrantRecord{Owner: p.Owner, View: Grant{ID: gid, AppID: a.View.ID, Subject: subject}}
+					g = GrantRecord{Owner: p.Owner, View: Grant{ID: gid, AppID: a.View.ID, Subject: subject, GrantedAt: now}}
 				} else if g.View.State == "active" {
-					reason, e := s.grantReason(t, g, a)
-					if e != nil {
-						return out, e
-					}
-					removed := difference(g.View.Scopes, in.Scopes)
-					if reason != "" {
+					removed := difference(g.View.Scopes, nextScopes)
+					noticeReason := "consent_changed"
+					if priorReason != "" {
 						removed = g.View.Scopes
-					} else {
-						reason = "consent_changed"
+						noticeReason = priorReason
 					}
 					if len(removed) > 0 {
-						if e = s.notice(t, g, removed, reason); e != nil {
+						if e = s.notice(t, g, removed, noticeReason); e != nil {
 							return out, e
 						}
 					}
 				}
+				if g.View.GrantedAt.IsZero() {
+					g.View.GrantedAt = now
+				}
 				g.View.AppName = a.View.Name
-				g.View.Scopes = in.Scopes
+				g.View.Scopes = nextScopes
 				g.View.State = "active"
+				g.View.TerminationReason = ""
+				g.View.UpdatedAt = now
 				g.View.Revision++
 				g.AppRevision = a.View.Revision
-				g.View.ExpiresAt = s.now().Add(time.Duration(a.View.Policy.GrantSeconds) * time.Second)
+				g.View.ExpiresAt = now.Add(time.Duration(a.View.Policy.GrantSeconds) * time.Second)
 				if e = t.SaveGrant(g); e != nil {
 					return out, e
 				}
 				c.GrantID = g.View.ID
 				c.GrantRevision = g.View.Revision
 				c.CodeHash = hash(s.code(id))
-				c.CodeExpiresAt = s.now().Add(time.Minute)
+				c.CodeExpiresAt = now.Add(time.Minute)
 			}
 			if e = t.SaveConsent(c); e != nil {
 				return out, e
@@ -246,7 +330,7 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 			return ErrInput
 		}
 		challenge := sha256.Sum256([]byte(in.Verifier))
-		if c.Decision != "approve" || c.Input.ClientID != in.ClientID || c.Input.RedirectURI != in.RedirectURI || a.View.Revision != c.View.Application.Revision || base64.RawURLEncoding.EncodeToString(challenge[:]) != c.Input.Challenge {
+		if c.Decision != "approve" || c.Input.ClientID != in.ClientID || c.Input.RedirectURI != in.RedirectURI || (c.AppRevision != 0 && a.View.Revision != c.AppRevision) || base64.RawURLEncoding.EncodeToString(challenge[:]) != c.Input.Challenge {
 			return ErrUnauthenticated
 		}
 		if c.Consumed {

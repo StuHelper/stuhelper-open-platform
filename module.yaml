@@ -33,9 +33,11 @@ scenario_tests:
     - projection_test.go#TestQQProjectionNeverLeaksNumberForStatus
   OP-02:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
+    - consent_grants_test.go#TestConsentSummaryComparisonAndIncrementalMergeMode
   OP-03:
     - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
+    - consent_grants_test.go#TestGrantsLifecycleMetadataFilteringOrderingAndWholeRevoke
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
   OP-10:
