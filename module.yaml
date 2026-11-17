@@ -36,6 +36,9 @@ scenario_tests:
   OP-03:
     - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
+    - problem_reasons_test.go#TestProblemReasonSubcodesAndQuotaRetryAfterHeader
+  OP-05:
+    - problem_reasons_test.go#TestProblemReasonSubcodesAndQuotaRetryAfterHeader
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
   OP-10:

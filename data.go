@@ -3,6 +3,7 @@ package openplatform
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -32,7 +33,7 @@ func (s *Service) authorizeToken(t Transaction, h, scope string, count bool) (Gr
 		return empty, ErrUnauthenticated
 	}
 	if !slices.Contains(g.View.Scopes, scope) || !slices.Contains(a.View.ApprovedScopes, scope) {
-		return empty, ErrForbidden
+		return empty, WithReason(ErrForbidden, "scope_not_authorized")
 	}
 	if count {
 		if e = t.Quota(a.View.ID, s.now().Format("2006-01-02"), a.View.Policy.DailyQuota); e != nil {
@@ -83,6 +84,9 @@ func (s *Service) Read(ctx context.Context, token, scope string, q Query) (Data,
 	defer cancel()
 	value, e := s.Source.Read(readCtx, grant.Owner, scope, q)
 	if e != nil {
+		if errors.Is(e, ErrForbidden) && ErrorReason(e) == "" {
+			return out, WithReason(ErrForbidden, "content_admission_denied")
+		}
 		return out, e
 	}
 	if e = readCtx.Err(); e != nil {

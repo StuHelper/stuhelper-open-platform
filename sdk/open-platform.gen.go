@@ -190,25 +190,25 @@ func (e NoticeAcknowledgement) Valid() bool {
 
 // Defines values for NoticeReason.
 const (
-	AccountClosed      NoticeReason = "account_closed"
-	ApplicationChanged NoticeReason = "application_changed"
-	ConsentChanged     NoticeReason = "consent_changed"
-	Expired            NoticeReason = "expired"
-	UserRevoked        NoticeReason = "user_revoked"
+	NoticeReasonAccountClosed      NoticeReason = "account_closed"
+	NoticeReasonApplicationChanged NoticeReason = "application_changed"
+	NoticeReasonConsentChanged     NoticeReason = "consent_changed"
+	NoticeReasonExpired            NoticeReason = "expired"
+	NoticeReasonUserRevoked        NoticeReason = "user_revoked"
 )
 
 // Valid indicates whether the value is a known member of the NoticeReason enum.
 func (e NoticeReason) Valid() bool {
 	switch e {
-	case AccountClosed:
+	case NoticeReasonAccountClosed:
 		return true
-	case ApplicationChanged:
+	case NoticeReasonApplicationChanged:
 		return true
-	case ConsentChanged:
+	case NoticeReasonConsentChanged:
 		return true
-	case Expired:
+	case NoticeReasonExpired:
 		return true
-	case UserRevoked:
+	case NoticeReasonUserRevoked:
 		return true
 	default:
 		return false
@@ -233,6 +233,63 @@ func (e OAuthProblemError) Valid() bool {
 	case InvalidRequest:
 		return true
 	case TemporarilyUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProblemReason.
+const (
+	ProblemReasonAccountClosed              ProblemReason = "account_closed"
+	ProblemReasonAdminRequired              ProblemReason = "admin_required"
+	ProblemReasonApplicationInactive        ProblemReason = "application_inactive"
+	ProblemReasonApplicationLimitReached    ProblemReason = "application_limit_reached"
+	ProblemReasonApplicationRevisionChanged ProblemReason = "application_revision_changed"
+	ProblemReasonConsentAlreadyDecided      ProblemReason = "consent_already_decided"
+	ProblemReasonConsentExpired             ProblemReason = "consent_expired"
+	ProblemReasonContentAdmissionDenied     ProblemReason = "content_admission_denied"
+	ProblemReasonDailyQuotaExceeded         ProblemReason = "daily_quota_exceeded"
+	ProblemReasonIdempotencyConflict        ProblemReason = "idempotency_conflict"
+	ProblemReasonPendingConsentLimitReached ProblemReason = "pending_consent_limit_reached"
+	ProblemReasonRedirectUriMismatch        ProblemReason = "redirect_uri_mismatch"
+	ProblemReasonRevisionMismatch           ProblemReason = "revision_mismatch"
+	ProblemReasonScopeNotAuthorized         ProblemReason = "scope_not_authorized"
+	ProblemReasonStateConflict              ProblemReason = "state_conflict"
+)
+
+// Valid indicates whether the value is a known member of the ProblemReason enum.
+func (e ProblemReason) Valid() bool {
+	switch e {
+	case ProblemReasonAccountClosed:
+		return true
+	case ProblemReasonAdminRequired:
+		return true
+	case ProblemReasonApplicationInactive:
+		return true
+	case ProblemReasonApplicationLimitReached:
+		return true
+	case ProblemReasonApplicationRevisionChanged:
+		return true
+	case ProblemReasonConsentAlreadyDecided:
+		return true
+	case ProblemReasonConsentExpired:
+		return true
+	case ProblemReasonContentAdmissionDenied:
+		return true
+	case ProblemReasonDailyQuotaExceeded:
+		return true
+	case ProblemReasonIdempotencyConflict:
+		return true
+	case ProblemReasonPendingConsentLimitReached:
+		return true
+	case ProblemReasonRedirectUriMismatch:
+		return true
+	case ProblemReasonRevisionMismatch:
+		return true
+	case ProblemReasonScopeNotAuthorized:
+		return true
+	case ProblemReasonStateConflict:
 		return true
 	default:
 		return false
@@ -524,7 +581,13 @@ type Policy struct {
 // Problem defines model for Problem.
 type Problem struct {
 	Code string `json:"code"`
+
+	// Reason 机器可读的细分错误原因码，用于多语言界面展示精准恢复指引。
+	Reason *ProblemReason `json:"reason,omitempty"`
 }
+
+// ProblemReason 机器可读的细分错误原因码，用于多语言界面展示精准恢复指引。
+type ProblemReason string
 
 // Profile defines model for Profile.
 type Profile struct {
@@ -2535,6 +2598,11 @@ type ClientWithResponsesInterface interface {
 	ExchangeCodeWithFormdataBodyWithResponse(ctx context.Context, body ExchangeCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*ExchangeCodeResponse, error)
 }
 
+// ListApplicationsResponse429Headers the declared response headers of an HTTP 429 response for ListApplications
+type ListApplicationsResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ListApplicationsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2554,6 +2622,8 @@ type ListApplicationsResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ListApplicationsResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -2625,6 +2695,11 @@ func (r ListApplicationsResponse) ContentType() string {
 	return ""
 }
 
+// ReviewApplicationResponse429Headers the declared response headers of an HTTP 429 response for ReviewApplication
+type ReviewApplicationResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ReviewApplicationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2644,6 +2719,8 @@ type ReviewApplicationResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ReviewApplicationResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -2715,6 +2792,11 @@ func (r ReviewApplicationResponse) ContentType() string {
 	return ""
 }
 
+// ListOwnApplicationsResponse429Headers the declared response headers of an HTTP 429 response for ListOwnApplications
+type ListOwnApplicationsResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ListOwnApplicationsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2734,6 +2816,8 @@ type ListOwnApplicationsResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ListOwnApplicationsResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -2805,6 +2889,11 @@ func (r ListOwnApplicationsResponse) ContentType() string {
 	return ""
 }
 
+// CreateApplicationResponse429Headers the declared response headers of an HTTP 429 response for CreateApplication
+type CreateApplicationResponse429Headers struct {
+	RetryAfter *int
+}
+
 type CreateApplicationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2824,6 +2913,8 @@ type CreateApplicationResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *CreateApplicationResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -2895,6 +2986,11 @@ func (r CreateApplicationResponse) ContentType() string {
 	return ""
 }
 
+// GetOwnApplicationResponse429Headers the declared response headers of an HTTP 429 response for GetOwnApplication
+type GetOwnApplicationResponse429Headers struct {
+	RetryAfter *int
+}
+
 type GetOwnApplicationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2914,6 +3010,8 @@ type GetOwnApplicationResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *GetOwnApplicationResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -2985,6 +3083,11 @@ func (r GetOwnApplicationResponse) ContentType() string {
 	return ""
 }
 
+// RotateClientCredentialResponse429Headers the declared response headers of an HTTP 429 response for RotateClientCredential
+type RotateClientCredentialResponse429Headers struct {
+	RetryAfter *int
+}
+
 type RotateClientCredentialResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3004,6 +3107,8 @@ type RotateClientCredentialResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *RotateClientCredentialResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3075,6 +3180,11 @@ func (r RotateClientCredentialResponse) ContentType() string {
 	return ""
 }
 
+// ListNoticesResponse429Headers the declared response headers of an HTTP 429 response for ListNotices
+type ListNoticesResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ListNoticesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3094,6 +3204,8 @@ type ListNoticesResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ListNoticesResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3165,6 +3277,11 @@ func (r ListNoticesResponse) ContentType() string {
 	return ""
 }
 
+// AcknowledgeNoticeResponse429Headers the declared response headers of an HTTP 429 response for AcknowledgeNotice
+type AcknowledgeNoticeResponse429Headers struct {
+	RetryAfter *int
+}
+
 type AcknowledgeNoticeResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3184,6 +3301,8 @@ type AcknowledgeNoticeResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *AcknowledgeNoticeResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3255,6 +3374,11 @@ func (r AcknowledgeNoticeResponse) ContentType() string {
 	return ""
 }
 
+// ResubmitApplicationResponse429Headers the declared response headers of an HTTP 429 response for ResubmitApplication
+type ResubmitApplicationResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ResubmitApplicationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3274,6 +3398,8 @@ type ResubmitApplicationResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ResubmitApplicationResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3345,6 +3471,11 @@ func (r ResubmitApplicationResponse) ContentType() string {
 	return ""
 }
 
+// PrepareConsentResponse429Headers the declared response headers of an HTTP 429 response for PrepareConsent
+type PrepareConsentResponse429Headers struct {
+	RetryAfter *int
+}
+
 type PrepareConsentResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3364,6 +3495,8 @@ type PrepareConsentResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *PrepareConsentResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3435,6 +3568,11 @@ func (r PrepareConsentResponse) ContentType() string {
 	return ""
 }
 
+// GetConsentResponse429Headers the declared response headers of an HTTP 429 response for GetConsent
+type GetConsentResponse429Headers struct {
+	RetryAfter *int
+}
+
 type GetConsentResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3454,6 +3592,8 @@ type GetConsentResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *GetConsentResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3525,6 +3665,11 @@ func (r GetConsentResponse) ContentType() string {
 	return ""
 }
 
+// DecideConsentResponse429Headers the declared response headers of an HTTP 429 response for DecideConsent
+type DecideConsentResponse429Headers struct {
+	RetryAfter *int
+}
+
 type DecideConsentResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3544,6 +3689,8 @@ type DecideConsentResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *DecideConsentResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3615,6 +3762,11 @@ func (r DecideConsentResponse) ContentType() string {
 	return ""
 }
 
+// ReadAuthorizedDataResponse429Headers the declared response headers of an HTTP 429 response for ReadAuthorizedData
+type ReadAuthorizedDataResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ReadAuthorizedDataResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3634,6 +3786,8 @@ type ReadAuthorizedDataResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ReadAuthorizedDataResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3705,6 +3859,11 @@ func (r ReadAuthorizedDataResponse) ContentType() string {
 	return ""
 }
 
+// ListOwnGrantsResponse429Headers the declared response headers of an HTTP 429 response for ListOwnGrants
+type ListOwnGrantsResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ListOwnGrantsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3724,6 +3883,8 @@ type ListOwnGrantsResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ListOwnGrantsResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3795,6 +3956,11 @@ func (r ListOwnGrantsResponse) ContentType() string {
 	return ""
 }
 
+// RevokeScopesResponse429Headers the declared response headers of an HTTP 429 response for RevokeScopes
+type RevokeScopesResponse429Headers struct {
+	RetryAfter *int
+}
+
 type RevokeScopesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3814,6 +3980,8 @@ type RevokeScopesResponse struct {
 	JSON429 *Problem
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Problem
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *RevokeScopesResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -4362,6 +4530,19 @@ func ParseListApplicationsResponse(rsp *http.Response) (*ListApplicationsRespons
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ListApplicationsResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -4435,6 +4616,19 @@ func ParseReviewApplicationResponse(rsp *http.Response) (*ReviewApplicationRespo
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ReviewApplicationResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -4512,6 +4706,19 @@ func ParseListOwnApplicationsResponse(rsp *http.Response) (*ListOwnApplicationsR
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ListOwnApplicationsResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -4585,6 +4792,19 @@ func ParseCreateApplicationResponse(rsp *http.Response) (*CreateApplicationRespo
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers CreateApplicationResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -4662,6 +4882,19 @@ func ParseGetOwnApplicationResponse(rsp *http.Response) (*GetOwnApplicationRespo
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers GetOwnApplicationResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -4735,6 +4968,19 @@ func ParseRotateClientCredentialResponse(rsp *http.Response) (*RotateClientCrede
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers RotateClientCredentialResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -4812,6 +5058,19 @@ func ParseListNoticesResponse(rsp *http.Response) (*ListNoticesResponse, error) 
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ListNoticesResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -4885,6 +5144,19 @@ func ParseAcknowledgeNoticeResponse(rsp *http.Response) (*AcknowledgeNoticeRespo
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers AcknowledgeNoticeResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -4962,6 +5234,19 @@ func ParseResubmitApplicationResponse(rsp *http.Response) (*ResubmitApplicationR
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ResubmitApplicationResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -5035,6 +5320,19 @@ func ParsePrepareConsentResponse(rsp *http.Response) (*PrepareConsentResponse, e
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers PrepareConsentResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -5112,6 +5410,19 @@ func ParseGetConsentResponse(rsp *http.Response) (*GetConsentResponse, error) {
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers GetConsentResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -5185,6 +5496,19 @@ func ParseDecideConsentResponse(rsp *http.Response) (*DecideConsentResponse, err
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers DecideConsentResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -5262,6 +5586,19 @@ func ParseReadAuthorizedDataResponse(rsp *http.Response) (*ReadAuthorizedDataRes
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ReadAuthorizedDataResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -5337,6 +5674,19 @@ func ParseListOwnGrantsResponse(rsp *http.Response) (*ListOwnGrantsResponse, err
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ListOwnGrantsResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -5410,6 +5760,19 @@ func ParseRevokeScopesResponse(rsp *http.Response) (*RevokeScopesResponse, error
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers RevokeScopesResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil

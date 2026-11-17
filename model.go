@@ -18,6 +18,32 @@ var (
 	ErrQuota           = errors.New("quota_exceeded")
 	ErrClient          = errors.New("invalid_client")
 )
+
+type Problem struct {
+	Code   string `json:"code"`
+	Reason string `json:"reason,omitempty"`
+}
+type ReasonError struct {
+	Base   error
+	Reason string
+}
+
+func (e ReasonError) Error() string { return e.Base.Error() + ":" + e.Reason }
+func (e ReasonError) Unwrap() error { return e.Base }
+func WithReason(base error, reason string) error {
+	if base == nil || reason == "" {
+		return base
+	}
+	return ReasonError{Base: base, Reason: reason}
+}
+func ErrorReason(err error) string {
+	var r ReasonError
+	if errors.As(err, &r) {
+		return r.Reason
+	}
+	return ""
+}
+
 var Scopes = []string{"student_status", "schools", "qq_binding_status", "qq_binding_details", "profile", "schedule", "catalog", "public_reviews"}
 
 type Principal struct {

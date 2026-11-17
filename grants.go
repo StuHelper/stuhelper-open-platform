@@ -106,7 +106,7 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 				return out, e
 			}
 			if g.View.Revision != in.Revision || !subset(in.Scopes, g.View.Scopes) {
-				return out, ErrConflict
+				return out, WithReason(ErrConflict, "revision_mismatch")
 			}
 			if e = s.notice(t, g, in.Scopes, "user_revoked"); e != nil {
 				return out, e
@@ -249,7 +249,7 @@ func (s *Service) Acknowledge(ctx context.Context, p Principal, app, secret, id,
 				return out, ErrNotFound
 			}
 			if n.Acknowledgement == "deleted" && in.Status != "deleted" {
-				return out, ErrConflict
+				return out, WithReason(ErrConflict, "state_conflict")
 			}
 			n.Acknowledgement = in.Status
 			n.Note = in.Note

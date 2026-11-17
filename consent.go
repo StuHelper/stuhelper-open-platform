@@ -36,14 +36,17 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 				return out, e
 			}
 			if pending >= 100 {
-				return out, ErrConflict
+				return out, WithReason(ErrConflict, "pending_consent_limit_reached")
 			}
 			a, e := s.validApp(t, in.ClientID)
 			if e != nil {
 				return out, e
 			}
-			if !slices.Contains(a.View.RedirectURIs, in.RedirectURI) || !subset(in.Scopes, a.View.ApprovedScopes) {
-				return out, ErrForbidden
+			if !slices.Contains(a.View.RedirectURIs, in.RedirectURI) {
+				return out, WithReason(ErrForbidden, "redirect_uri_mismatch")
+			}
+			if !subset(in.Scopes, a.View.ApprovedScopes) {
+				return out, WithReason(ErrForbidden, "scope_not_authorized")
 			}
 			id, e := s.random()
 			if e != nil {
@@ -72,7 +75,7 @@ func (s *Service) Consent(ctx context.Context, p Principal, id string) (Consent,
 			return ErrNotFound
 		}
 		if !s.now().Before(c.View.ExpiresAt) {
-			return ErrConflict
+			return WithReason(ErrConflict, "consent_expired")
 		}
 		out = c.View
 		return nil
@@ -109,18 +112,21 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 			if e != nil {
 				return out, e
 			}
-			if c.Decision != "" || !s.now().Before(c.View.ExpiresAt) {
-				return out, ErrConflict
+			if c.Decision != "" {
+				return out, WithReason(ErrConflict, "consent_already_decided")
+			}
+			if !s.now().Before(c.View.ExpiresAt) {
+				return out, WithReason(ErrConflict, "consent_expired")
 			}
 			a, e := s.validApp(t, c.Input.ClientID)
 			if e != nil {
 				return out, e
 			}
 			if a.View.Revision != c.View.Application.Revision {
-				return out, ErrConflict
+				return out, WithReason(ErrConflict, "application_revision_changed")
 			}
 			if !subset(in.Scopes, c.Input.Scopes) || !subset(in.Scopes, a.View.ApprovedScopes) {
-				return out, ErrForbidden
+				return out, WithReason(ErrForbidden, "scope_not_authorized")
 			}
 			u, _ := url.Parse(c.Input.RedirectURI)
 			q := u.Query()
