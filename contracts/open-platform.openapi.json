@@ -26,74 +26,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -108,14 +59,7 @@
         },
         "parameters": [
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       },
@@ -139,94 +83,33 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "parameters": [
           {
-            "name": "after",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/PageAfter"
           },
           {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            }
+            "$ref": "#/components/parameters/PageLimit"
           }
         ]
       }
@@ -252,94 +135,33 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "parameters": [
           {
-            "name": "after",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/PageAfter"
           },
           {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            }
+            "$ref": "#/components/parameters/PageLimit"
           }
         ]
       }
@@ -365,85 +187,30 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           }
         ]
       }
@@ -469,74 +236,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -551,23 +269,10 @@
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           },
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -593,74 +298,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -675,23 +331,10 @@
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           },
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -717,74 +360,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -799,23 +393,10 @@
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           },
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -841,74 +422,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -923,14 +455,7 @@
         },
         "parameters": [
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -956,85 +481,30 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           }
         ]
       }
@@ -1060,74 +530,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -1142,23 +563,10 @@
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           },
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1180,74 +588,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/OAuthBadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/OAuthUnauthorized"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/OAuthForbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/OAuthNotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/OAuthConflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/OAuthQuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/OAuthUnavailable"
           }
         },
         "requestBody": {
@@ -1283,94 +642,33 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "parameters": [
           {
-            "name": "after",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/PageAfter"
           },
           {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            }
+            "$ref": "#/components/parameters/PageLimit"
           }
         ]
       }
@@ -1396,74 +694,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -1478,23 +727,10 @@
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           },
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1523,103 +759,36 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "parameters": [
           {
-            "name": "after",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/PageAfter"
           },
           {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            }
+            "$ref": "#/components/parameters/PageLimit"
           },
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           }
         ]
       }
@@ -1648,74 +817,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -1730,32 +850,13 @@
         },
         "parameters": [
           {
-            "name": "notice_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/NoticeIdPath"
           },
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           },
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1781,74 +882,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "parameters": [
@@ -1859,7 +911,7 @@
               "type": "string",
               "maxLength": 500
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "按单个对象 ID 精确读取详情；仅适用于 catalog 与 public_reviews 范围，其他范围传入返回 400。"
           },
           {
             "name": "kind",
@@ -1868,7 +920,7 @@
               "type": "string",
               "maxLength": 500
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "按对象类别过滤（如目录的 course/teacher，评价的 course/mentor）；仅适用于 catalog 与 public_reviews 范围。"
           },
           {
             "name": "query",
@@ -1877,7 +929,7 @@
               "type": "string",
               "maxLength": 500
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "关键词搜索词；仅适用于 catalog 范围，其他范围传入返回 400。"
           },
           {
             "name": "term_id",
@@ -1886,7 +938,7 @@
               "type": "string",
               "maxLength": 500
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "按学期标识过滤选课排课、目录或课程评价；适用于 schedule、catalog 与 public_reviews 范围。"
           },
           {
             "name": "target_id",
@@ -1895,7 +947,7 @@
               "type": "string",
               "maxLength": 500
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "按评价目标（课程或教师 ID）过滤公开评价；仅适用于 public_reviews 范围。"
           },
           {
             "name": "after",
@@ -1904,7 +956,7 @@
               "type": "string",
               "maxLength": 2048
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "数据列表分页游标；仅适用于 schedule、catalog 与 public_reviews 列表查询，单对象范围禁止传入。"
           },
           {
             "name": "limit",
@@ -1915,15 +967,10 @@
               "maximum": 100,
               "default": 50
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "数据列表单页条数上限（1–100，默认 50）；仅适用于 schedule、catalog 与 public_reviews 列表查询，单对象范围禁止传入。"
           },
           {
-            "name": "scope",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/Scope"
-            }
+            "$ref": "#/components/parameters/ScopePath"
           }
         ]
       }
@@ -2962,6 +2009,210 @@
           "time_text",
           "location"
         ]
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "PageAfter": {
+        "name": "after",
+        "in": "query",
+        "description": "上一页返回的游标，省略时从首页开始读取。",
+        "schema": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "PageLimit": {
+        "name": "limit",
+        "in": "query",
+        "description": "单页最多返回条数（1–100，默认 50）。",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 50
+        }
+      },
+      "ResourceIdPath": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "目标资源标识。",
+        "schema": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "NoticeIdPath": {
+        "name": "notice_id",
+        "in": "path",
+        "required": true,
+        "description": "撤回通知标识。",
+        "schema": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "ScopePath": {
+        "name": "scope",
+        "in": "path",
+        "required": true,
+        "description": "请求的单一业务信息范围。",
+        "schema": {
+          "$ref": "#/components/schemas/Scope"
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "输入无效",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "身份或令牌无效",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "权限不足",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "对象不存在或不属于本人",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "修订或幂等冲突",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "QuotaExceeded": {
+        "description": "调用配额用尽",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "依赖不可用",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "OAuthBadRequest": {
+        "description": "请求或授权码无效",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthUnauthorized": {
+        "description": "客户端凭据无效",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthForbidden": {
+        "description": "权限不足",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthNotFound": {
+        "description": "对象不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthConflict": {
+        "description": "状态冲突",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthQuotaExceeded": {
+        "description": "调用配额用尽",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthUnavailable": {
+        "description": "依赖不可用",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
       }
     }
   }
