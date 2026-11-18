@@ -2,13 +2,21 @@ package openplatform
 
 import (
 	"context"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in ApplicationInput) (Application, error) {
 	var out Application
 	if !validOwner(p.Owner) {
 		return out, ErrUnauthenticated
+	}
+	if id != "" && !validID(id) {
+		return out, ErrInput
 	}
 	if e := validateApp(&in); e != nil {
 		return out, e
@@ -18,37 +26,44 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 			return e
 		}
 		var e error
-		out, e = replay(t, p.Owner, key, "application:"+id, in, func() (Application, error) {
+		out, e = replay(t, p.Owner, key, "application:"+id, in, s.now(), func() (Application, auditSpec, error) {
+			now := s.now().Truncate(time.Microsecond)
 			var a AppRecord
 			if id == "" {
 				n, e := t.CountApps(p.Owner)
 				if e != nil {
-					return out, e
+					return out, auditSpec{}, e
 				}
 				if n >= 100 {
-					return out, ErrConflict
+					return out, auditSpec{}, WithReason(ErrConflict, "application_limit_reached")
 				}
 				id, e = s.random()
 				if e != nil {
-					return out, e
+					return out, auditSpec{}, e
 				}
-				a = AppRecord{Owner: p.Owner, View: Application{ID: id, Revision: 1, CreatedAt: s.now(), ApprovedScopes: []string{}}}
+				a = AppRecord{Owner: p.Owner, UpdatedAt: now, View: Application{ID: id, Revision: 1, CreatedAt: now, ApprovedScopes: []string{}}}
 			} else {
 				var e error
 				a, e = t.App(id)
 				if e != nil {
-					return out, e
+					return out, auditSpec{}, e
 				}
 				if a.Owner != p.Owner {
-					return out, ErrNotFound
+					return out, auditSpec{}, ErrNotFound
 				}
-				if a.View.State == "active" || a.View.ArchivedAt != nil || a.View.Revision != in.Revision {
-					return out, ErrConflict
+				if a.View.State == "active" || a.View.State == "suspended" || a.View.ArchivedAt != nil {
+					return out, auditSpec{}, WithReason(ErrConflict, "state_conflict")
+				}
+				if a.View.Revision != in.Revision {
+					return out, auditSpec{}, WithReason(ErrConflict, "revision_mismatch")
 				}
 				a.View.Revision++
 				a.View.ApprovedScopes = []string{}
-				a.View.Note = ""
 				a.View.Policy = Policy{}
+				a.UpdatedAt = now
+			}
+			if in.ClientType == "public" {
+				a.SecretHash = ""
 			}
 			a.View.Name = in.Name
 			a.View.Purpose = in.Purpose
@@ -57,9 +72,9 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 			a.View.ClientType = in.ClientType
 			a.View.State = "pending"
 			if e := t.SaveApp(a); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
-			return a.View, nil
+			return a.View, auditSpec{actor: p.Owner, action: "application_submitted", target: a.View.ID}, nil
 		})
 		return e
 	})
@@ -67,7 +82,13 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 }
 func (s *Service) Application(ctx context.Context, p Principal, id string) (Application, error) {
 	var out Application
-	e := s.transaction(ctx, p.Owner, id, func(t Transaction) error {
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !validID(id) {
+		return out, ErrInput
+	}
+	e := s.sharedTransaction(ctx, p.Owner, id, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
@@ -88,39 +109,73 @@ func (s *Service) Application(ctx context.Context, p Principal, id string) (Appl
 	})
 	return out, e
 }
-func (s *Service) Archive(ctx context.Context, p Principal, id, key string, revision int64) (Application, error) {
-	var out Application
+func parseAppCursor(after string) (AppCursor, error) {
+	if after == "" {
+		return AppCursor{}, nil
+	}
+	rawMicros, id, ok := strings.Cut(after, "|")
+	if !ok || id == "" || !utf8.ValidString(id) || strings.ContainsFunc(id, unicode.IsControl) {
+		return AppCursor{}, ErrInput
+	}
+	micros, e := strconv.ParseInt(rawMicros, 10, 64)
+	if e != nil {
+		return AppCursor{}, ErrInput
+	}
+	return AppCursor{Set: true, UpdatedAt: time.UnixMicro(micros).UTC(), ID: id}, nil
+}
+func formatAppCursor(a AdminApplication) string {
+	return strconv.FormatInt(a.UpdatedAt.UTC().UnixMicro(), 10) + "|" + a.ID
+}
+func (s *Service) AdminApplication(ctx context.Context, p Principal, id string) (AdminApplication, error) {
+	var out AdminApplication
 	if !validOwner(p.Owner) {
 		return out, ErrUnauthenticated
 	}
-	if revision < 1 {
-		return out, ErrInput
+	if !p.Admin {
+		return out, WithReason(ErrForbidden, "admin_required")
 	}
 	e := s.transaction(ctx, p.Owner, id, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
-		a, e := t.App(id)
+		var e error
+		out, e = t.AdminApp(id, s.now())
+		return e
+	})
+	return out, e
+}
+func (s *Service) AdminApplications(ctx context.Context, p Principal, f AdminAppFilter) (Page[AdminApplication], error) {
+	var out Page[AdminApplication]
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !p.Admin {
+		return out, WithReason(ErrForbidden, "admin_required")
+	}
+	if f.State != "" && !slices.Contains([]string{"pending", "changes_requested", "active", "suspended"}, f.State) {
+		return out, ErrInput
+	}
+	if f.Owner != "" && !validOwner(f.Owner) {
+		return out, ErrInput
+	}
+	limit, e := pagination(f.After, f.Limit)
+	if e != nil {
+		return out, e
+	}
+	cursor, e := parseAppCursor(f.After)
+	if e != nil {
+		return out, e
+	}
+	e = s.transaction(ctx, p.Owner, "", func(t Transaction) error {
+		if e := s.activeOwner(t, p.Owner); e != nil {
+			return e
+		}
+		rows, e := t.AdminApps(f.State, f.Owner, s.now(), cursor, limit+1)
 		if e != nil {
 			return e
 		}
-		if a.Owner != p.Owner {
-			return ErrNotFound
-		}
-		out, e = replay(t, p.Owner, key, "archive:"+id, revision, func() (Application, error) {
-			if a.View.ArchivedAt != nil || a.View.Revision != revision {
-				return out, ErrConflict
-			}
-			now := s.now().Truncate(time.Microsecond)
-			a.View.State = "suspended"
-			a.View.ArchivedAt = &now
-			a.View.Revision++
-			if e = t.SaveApp(a); e != nil {
-				return out, e
-			}
-			return a.View, nil
-		})
-		return e
+		out = page(rows, limit, formatAppCursor)
+		return nil
 	})
 	return out, e
 }
@@ -130,13 +185,13 @@ func (s *Service) Applications(ctx context.Context, p Principal, admin bool, aft
 		return out, ErrUnauthenticated
 	}
 	if admin && !p.Admin {
-		return out, ErrForbidden
+		return out, WithReason(ErrForbidden, "admin_required")
 	}
 	limit, e := pagination(after, limit)
 	if e != nil {
 		return out, e
 	}
-	e = s.transaction(ctx, p.Owner, "", func(t Transaction) error {
+	e = s.sharedTransaction(ctx, p.Owner, "", func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
@@ -159,9 +214,9 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 		return out, ErrUnauthenticated
 	}
 	if !p.Admin {
-		return out, ErrForbidden
+		return out, WithReason(ErrForbidden, "admin_required")
 	}
-	if in.Revision < 1 || !validText(in.Note, 1000, true) || (in.Decision != "approve" && in.Decision != "changes_requested" && in.Decision != "suspend") {
+	if !validID(id) || in.Revision < 1 || !validText(in.Note, 1000, true) || (in.Decision != "approve" && in.Decision != "changes_requested" && in.Decision != "suspend") {
 		return out, ErrInput
 	}
 	var e error
@@ -177,36 +232,47 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 			return e
 		}
 		var e error
-		out, e = replay(t, p.Owner, key, "review:"+id, in, func() (Application, error) {
+		out, e = replay(t, p.Owner, key, "review:"+id, in, s.now(), func() (Application, auditSpec, error) {
 			a, e := t.App(id)
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			if e = s.activeOwner(t, a.Owner); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
-			if a.View.ArchivedAt != nil || a.View.Revision != in.Revision {
-				return out, ErrConflict
+			if a.View.ArchivedAt != nil {
+				return out, auditSpec{}, WithReason(ErrConflict, "state_conflict")
+			}
+			if a.View.Revision != in.Revision {
+				return out, auditSpec{}, WithReason(ErrConflict, "revision_mismatch")
 			}
 			if !subset(in.ApprovedScopes, a.View.RequestedScopes) {
-				return out, ErrInput
+				return out, auditSpec{}, ErrInput
 			}
+			now := s.now().Truncate(time.Microsecond)
+			a.UpdatedAt = now
 			switch in.Decision {
 			case "approve":
 				a.View.State = "active"
 				a.View.ApprovedScopes = in.ApprovedScopes
 				a.View.Policy = in.Policy
+				a.TerminatedAt = nil
 			case "changes_requested":
 				a.View.State = "changes_requested"
+				a.TerminatedAt = nil
 			case "suspend":
 				a.View.State = "suspended"
+				a.TerminatedAt = &now
 			}
 			a.View.Revision++
 			a.View.Note = in.Note
+			a.UpdatedAt = now
+			a.ReviewedBy = p.Owner
+			a.ReviewedAt = &now
 			if e = t.SaveApp(a); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
-			return a.View, nil
+			return a.View, auditSpec{actor: p.Owner, action: "application_reviewed", target: a.View.ID, reason: in.Note}, nil
 		})
 		return e
 	})
@@ -217,7 +283,7 @@ func (s *Service) RotateCredential(ctx context.Context, p Principal, id, key str
 	if !validOwner(p.Owner) {
 		return out, ErrUnauthenticated
 	}
-	if revision < 0 {
+	if !validID(id) || revision < 0 {
 		return out, ErrInput
 	}
 	var secret string
@@ -232,21 +298,25 @@ func (s *Service) RotateCredential(ctx context.Context, p Principal, id, key str
 		if a.Owner != p.Owner {
 			return ErrNotFound
 		}
-		out, e = replay(t, p.Owner, key, "credential:"+id, revision, func() (Credential, error) {
+		out, e = replay(t, p.Owner, key, "credential:"+id, revision, s.now(), func() (Credential, auditSpec, error) {
 			if a.View.CredentialRevision != revision {
-				return out, ErrConflict
+				return out, auditSpec{}, WithReason(ErrConflict, "revision_mismatch")
+			}
+			if a.View.ClientType != "confidential" {
+				return out, auditSpec{}, WithReason(ErrConflict, "state_conflict")
 			}
 			v, e := s.random()
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			secret = "opsecret_" + v
 			a.SecretHash = hash(secret)
 			a.View.CredentialRevision++
+			a.UpdatedAt = s.now()
 			if e = t.SaveApp(a); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
-			return Credential{AppID: id, Revision: a.View.CredentialRevision, Retrievable: false}, nil
+			return Credential{AppID: id, Revision: a.View.CredentialRevision, Retrievable: false}, auditSpec{actor: p.Owner, action: "credential_rotated", target: id}, nil
 		})
 		return e
 	})
@@ -265,13 +335,16 @@ func (s *Service) validApp(t Transaction, id string) (AppRecord, error) {
 		return a, e
 	}
 	if a.View.State != "active" || !policyValid(a.View.Policy) {
-		return a, ErrForbidden
+		return a, WithReason(ErrForbidden, "application_inactive")
 	}
 	return a, nil
 }
 func authenticatedApp(t Transaction, p Principal, id, secret string) (AppRecord, error) {
 	a, e := t.App(id)
 	if e != nil {
+		if secret != "" {
+			return a, lookupError(e)
+		}
 		return a, e
 	}
 	if secret != "" {
@@ -288,10 +361,49 @@ func authenticatedApp(t Transaction, p Principal, id, secret string) (AppRecord,
 		return a, e
 	}
 	if closed {
-		return a, ErrForbidden
+		return a, WithReason(ErrForbidden, "account_closed")
 	}
 	if a.Owner != p.Owner {
 		return a, ErrNotFound
 	}
 	return a, nil
+}
+
+func (s *Service) Archive(ctx context.Context, p Principal, id, key string, revision int64) (Application, error) {
+	var out Application
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !validID(id) || revision < 1 {
+		return out, ErrInput
+	}
+	e := s.transaction(ctx, p.Owner, id, func(t Transaction) error {
+		if e := s.activeOwner(t, p.Owner); e != nil {
+			return e
+		}
+		a, e := t.App(id)
+		if e != nil {
+			return e
+		}
+		if a.Owner != p.Owner {
+			return ErrNotFound
+		}
+		out, e = replay(t, p.Owner, key, "archive:"+id, revision, s.now(), func() (Application, auditSpec, error) {
+			if a.View.ArchivedAt != nil || a.View.Revision != revision {
+				return out, auditSpec{}, ErrConflict
+			}
+			now := s.now().Truncate(time.Microsecond)
+			a.View.State = "suspended"
+			a.View.ArchivedAt = &now
+			a.TerminatedAt = &now
+			a.UpdatedAt = now
+			a.View.Revision++
+			if e = t.SaveApp(a); e != nil {
+				return out, auditSpec{}, e
+			}
+			return a.View, auditSpec{actor: p.Owner, action: "application_archived", target: id}, nil
+		})
+		return e
+	})
+	return out, e
 }
