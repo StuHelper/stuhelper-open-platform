@@ -106,6 +106,18 @@ func difference(a, b []string) []string {
 	}
 	return out
 }
+
+// RetryAfterSeconds returns seconds remaining until the next UTC 00:00:00 daily quota window.
+func (s *Service) RetryAfterSeconds() int {
+	now := s.now()
+	next := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).Add(24 * time.Hour)
+	rem := next.Sub(now)
+	sec := int((rem + time.Second - 1) / time.Second)
+	if sec < 1 {
+		return 1
+	}
+	return sec
+}
 func intersection(a, b []string) []string {
 	out := []string{}
 	for _, x := range a {
@@ -140,7 +152,7 @@ func (s *Service) activeOwner(t Transaction, owner string) error {
 		return e
 	}
 	if closed {
-		return ErrForbidden
+		return WithReason(ErrForbidden, "account_closed")
 	}
 	return nil
 }
@@ -168,7 +180,7 @@ func replay[T any](t Transaction, scope, key, op string, in any, at time.Time, r
 	old, body, e := t.Replay(scope, key)
 	if e == nil {
 		if old != digest {
-			return out, ErrConflict
+			return out, WithReason(ErrConflict, "idempotency_conflict")
 		}
 		if json.Unmarshal(body, &out) != nil {
 			return out, ErrUnavailable

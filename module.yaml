@@ -42,11 +42,13 @@ scenario_tests:
     - lifecycle_transitions_test.go#TestRevokeAndReconsentStateMachineSuspendedResubmitAckMonotonicityAndTerminationTimestamps
     - locking_performance_test.go#TestNoticesPreventUnauthenticatedAppEnumerationAvoidLockContentionAndEliminateNPlusOneAndFullScan
     - consent_grants_test.go#TestGrantsLifecycleMetadataFilteringOrderingAndWholeRevoke
+    - problem_reasons_test.go#TestProblemReasonSubcodesAndQuotaRetryAfterHeader
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
     - token_protocol_test.go#TestTokenEndpointAcceptsBrowserFormMediaTypeAndMapsTransientErrorsTo503
     - input_validation_test.go#TestMalformedUTF8NullBytesSingleLineFieldsClosureKeyAndAuditSnapshotValidation
   OP-05:
+    - problem_reasons_test.go#TestProblemReasonSubcodesAndQuotaRetryAfterHeader
     - contract_projection_test.go#TestOpenAPIConstraintsUnexpectedQueryRejectionAndOP05ContentAdmission
   OP-06:
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence

@@ -168,8 +168,11 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 			if e != nil {
 				return out, auditSpec{}, e
 			}
-			if g.View.State != "active" || g.View.Revision != in.Revision || (!wholeGrant && !subset(in.Scopes, g.View.Scopes)) {
-				return out, auditSpec{}, ErrConflict
+			if g.View.State != "active" {
+				return out, auditSpec{}, WithReason(ErrConflict, "state_conflict")
+			}
+			if g.View.Revision != in.Revision || (!wholeGrant && !subset(in.Scopes, g.View.Scopes)) {
+				return out, auditSpec{}, WithReason(ErrConflict, "revision_mismatch")
 			}
 			a, e := t.App(g.View.AppID)
 			if e != nil {
@@ -397,7 +400,7 @@ func (s *Service) Acknowledge(ctx context.Context, p Principal, app, secret, id,
 				return out, auditSpec{}, ErrNotFound
 			}
 			if ackRank(in.Status) < ackRank(n.Acknowledgement) {
-				return out, auditSpec{}, ErrConflict
+				return out, auditSpec{}, WithReason(ErrConflict, "state_conflict")
 			}
 			n.Acknowledgement = in.Status
 			n.Note = in.Note

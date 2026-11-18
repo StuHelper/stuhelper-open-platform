@@ -35,7 +35,7 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 					return out, auditSpec{}, e
 				}
 				if n >= 100 {
-					return out, auditSpec{}, ErrConflict
+					return out, auditSpec{}, WithReason(ErrConflict, "application_limit_reached")
 				}
 				id, e = s.random()
 				if e != nil {
@@ -51,8 +51,11 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 				if a.Owner != p.Owner {
 					return out, auditSpec{}, ErrNotFound
 				}
-				if a.View.State == "active" || a.View.State == "suspended" || a.View.Revision != in.Revision {
-					return out, auditSpec{}, ErrConflict
+				if a.View.State == "active" || a.View.State == "suspended" {
+					return out, auditSpec{}, WithReason(ErrConflict, "state_conflict")
+				}
+				if a.View.Revision != in.Revision {
+					return out, auditSpec{}, WithReason(ErrConflict, "revision_mismatch")
 				}
 				a.View.Revision++
 				a.View.ApprovedScopes = []string{}
@@ -124,7 +127,7 @@ func (s *Service) AdminApplication(ctx context.Context, p Principal, id string) 
 		return out, ErrUnauthenticated
 	}
 	if !p.Admin {
-		return out, ErrForbidden
+		return out, WithReason(ErrForbidden, "admin_required")
 	}
 	e := s.transaction(ctx, p.Owner, id, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
@@ -142,7 +145,7 @@ func (s *Service) AdminApplications(ctx context.Context, p Principal, f AdminApp
 		return out, ErrUnauthenticated
 	}
 	if !p.Admin {
-		return out, ErrForbidden
+		return out, WithReason(ErrForbidden, "admin_required")
 	}
 	if f.State != "" && !slices.Contains([]string{"pending", "changes_requested", "active", "suspended"}, f.State) {
 		return out, ErrInput
@@ -177,7 +180,7 @@ func (s *Service) Applications(ctx context.Context, p Principal, admin bool, aft
 		return out, ErrUnauthenticated
 	}
 	if admin && !p.Admin {
-		return out, ErrForbidden
+		return out, WithReason(ErrForbidden, "admin_required")
 	}
 	limit, e := pagination(after, limit)
 	if e != nil {
@@ -206,7 +209,7 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 		return out, ErrUnauthenticated
 	}
 	if !p.Admin {
-		return out, ErrForbidden
+		return out, WithReason(ErrForbidden, "admin_required")
 	}
 	if !validID(id) || in.Revision < 1 || !validText(in.Note, 1000, true) || (in.Decision != "approve" && in.Decision != "changes_requested" && in.Decision != "suspend") {
 		return out, ErrInput
@@ -233,7 +236,7 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 				return out, auditSpec{}, e
 			}
 			if a.View.Revision != in.Revision {
-				return out, auditSpec{}, ErrConflict
+				return out, auditSpec{}, WithReason(ErrConflict, "revision_mismatch")
 			}
 			if !subset(in.ApprovedScopes, a.View.RequestedScopes) {
 				return out, auditSpec{}, ErrInput
@@ -288,8 +291,11 @@ func (s *Service) RotateCredential(ctx context.Context, p Principal, id, key str
 			return ErrNotFound
 		}
 		out, e = replay(t, p.Owner, key, "credential:"+id, revision, s.now(), func() (Credential, auditSpec, error) {
-			if a.View.ClientType != "confidential" || a.View.CredentialRevision != revision {
-				return out, auditSpec{}, ErrConflict
+			if a.View.CredentialRevision != revision {
+				return out, auditSpec{}, WithReason(ErrConflict, "revision_mismatch")
+			}
+			if a.View.ClientType != "confidential" {
+				return out, auditSpec{}, WithReason(ErrConflict, "state_conflict")
 			}
 			v, e := s.random()
 			if e != nil {
@@ -321,7 +327,7 @@ func (s *Service) validApp(t Transaction, id string) (AppRecord, error) {
 		return a, e
 	}
 	if a.View.State != "active" || !policyValid(a.View.Policy) {
-		return a, ErrForbidden
+		return a, WithReason(ErrForbidden, "application_inactive")
 	}
 	return a, nil
 }
@@ -347,7 +353,7 @@ func authenticatedApp(t Transaction, p Principal, id, secret string) (AppRecord,
 		return a, e
 	}
 	if closed {
-		return a, ErrForbidden
+		return a, WithReason(ErrForbidden, "account_closed")
 	}
 	if a.Owner != p.Owner {
 		return a, ErrNotFound

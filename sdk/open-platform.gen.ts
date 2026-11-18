@@ -283,8 +283,14 @@ export interface components {
          * @enum {string}
          */
         Scope: "student_status" | "schools" | "qq_binding_status" | "qq_binding_details" | "profile" | "schedule" | "catalog" | "public_reviews";
+        /**
+         * @description 机器可读的细分错误原因码，用于多语言界面展示精准恢复指引。
+         * @enum {string}
+         */
+        ProblemReason: "consent_expired" | "consent_already_decided" | "application_revision_changed" | "revision_mismatch" | "idempotency_conflict" | "application_limit_reached" | "pending_consent_limit_reached" | "state_conflict" | "content_admission_denied" | "scope_not_authorized" | "account_closed" | "application_inactive" | "redirect_uri_mismatch" | "admin_required" | "daily_quota_exceeded";
         Problem: {
             code: string;
+            reason?: components["schemas"]["ProblemReason"];
         };
         Policy: {
             grant_seconds: number;
@@ -665,6 +671,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -754,6 +762,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -844,6 +854,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1014,6 +1026,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1105,6 +1119,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1196,6 +1212,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1287,6 +1305,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1376,6 +1396,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1461,6 +1483,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1552,6 +1576,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1727,6 +1753,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1818,6 +1846,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1906,6 +1936,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1998,6 +2030,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2098,6 +2132,8 @@ export interface operations {
             /** @description 调用配额用尽 */
             429: {
                 headers: {
+                    /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {

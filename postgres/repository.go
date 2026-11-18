@@ -125,7 +125,7 @@ func (t *transaction) CloseOwner(owner, id string) error {
 	var old string
 	e = t.tx.QueryRowContext(t.ctx, `SELECT closure_id FROM open_platform.owners WHERE owner_key=$1`, owner).Scan(&old)
 	if e == nil && old != id {
-		return op.ErrConflict
+		return op.WithReason(op.ErrConflict, "idempotency_conflict")
 	}
 	return safe(e)
 }
@@ -478,7 +478,7 @@ func (t *transaction) Quota(app, day string, limit int) error {
 	var n int
 	e := t.tx.QueryRowContext(t.ctx, `INSERT INTO open_platform.quotas VALUES($1,$2,1) ON CONFLICT(app_id,day) DO UPDATE SET used=open_platform.quotas.used+1 WHERE open_platform.quotas.used<$3 RETURNING used`, app, day, limit).Scan(&n)
 	if errors.Is(e, sql.ErrNoRows) {
-		return op.ErrQuota
+		return op.WithReason(op.ErrQuota, "daily_quota_exceeded")
 	}
 	return safe(e)
 }

@@ -39,7 +39,7 @@ func (s *Service) authorizeToken(t Transaction, h, scope string, count bool) (Gr
 		return empty, ErrUnauthenticated
 	}
 	if !slices.Contains(g.View.Scopes, scope) || !slices.Contains(a.View.ApprovedScopes, scope) {
-		return empty, ErrForbidden
+		return empty, WithReason(ErrForbidden, "scope_not_authorized")
 	}
 	if count {
 		if e = t.Quota(a.View.ID, s.now().Format("2006-01-02"), a.View.Policy.DailyQuota); e != nil {
@@ -94,7 +94,7 @@ func (s *Service) Read(ctx context.Context, token, scope string, q Query) (Data,
 	if e != nil {
 		switch {
 		case errors.Is(e, ErrForbidden):
-			return out, ErrForbidden
+			return out, WithReason(ErrForbidden, "content_admission_denied")
 		case errors.Is(e, ErrNotFound):
 			return out, ErrNotFound
 		case errors.Is(e, ErrInput):

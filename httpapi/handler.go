@@ -23,7 +23,7 @@ func write(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
-func failure(w http.ResponseWriter, e error) {
+func (h Handler) failure(w http.ResponseWriter, e error) {
 	code, status := "unavailable", 503
 	switch {
 	case errors.Is(e, op.ErrInput):
@@ -38,8 +38,13 @@ func failure(w http.ResponseWriter, e error) {
 		code, status = "conflict", 409
 	case errors.Is(e, op.ErrQuota):
 		code, status = "quota_exceeded", 429
+		retryAfter := 86400
+		if h.Service != nil {
+			retryAfter = h.Service.RetryAfterSeconds()
+		}
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
 	}
-	write(w, status, map[string]string{"code": code})
+	write(w, status, op.Problem{Code: code, Reason: op.ErrorReason(e)})
 }
 func validMediaType(r *http.Request, expected string) bool {
 	values := r.Header.Values("Content-Type")
@@ -88,12 +93,12 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	r.Body = http.MaxBytesReader(w, r.Body, 16384)
 	if h.Service == nil {
-		failure(w, op.ErrUnavailable)
+		h.failure(w, op.ErrUnavailable)
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/open-platform/")
 	if path == r.URL.Path || strings.Contains(path, "//") {
-		failure(w, op.ErrNotFound)
+		h.failure(w, op.ErrNotFound)
 		return
 	}
 	parts := strings.Split(path, "/")
@@ -111,20 +116,20 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var e error
 	if noticeRoute && basic {
 		if appID != parts[1] || secret == "" {
-			failure(w, op.ErrUnauthenticated)
+			h.failure(w, op.ErrUnauthenticated)
 			return
 		}
 	} else {
 		p, e = h.principal(r)
 		if e != nil {
-			failure(w, e)
+			h.failure(w, e)
 			return
 		}
 	}
 	var result any
 	key := r.Header.Get("Idempotency-Key")
 	if r.Method == "POST" && len(r.Header.Values("Idempotency-Key")) != 1 {
-		failure(w, op.ErrInput)
+		h.failure(w, op.ErrInput)
 		return
 	}
 	noQuery := func() bool {
@@ -235,7 +240,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		e = op.ErrNotFound
 	}
 	if e != nil {
-		failure(w, e)
+		h.failure(w, e)
 		return
 	}
 	write(w, 200, result)
@@ -323,7 +328,7 @@ func (h Handler) data(w http.ResponseWriter, r *http.Request, scope string) {
 	}
 	for k, v := range r.URL.Query() {
 		if !slices.Contains(allowed, k) || len(v) != 1 {
-			failure(w, op.ErrInput)
+			h.failure(w, op.ErrInput)
 			return
 		}
 	}
@@ -331,20 +336,20 @@ func (h Handler) data(w http.ResponseWriter, r *http.Request, scope string) {
 	if raw := r.URL.Query().Get("limit"); raw != "" {
 		n, e := strconv.Atoi(raw)
 		if e != nil || n < 1 || n > 100 {
-			failure(w, op.ErrInput)
+			h.failure(w, op.ErrInput)
 			return
 		}
 		limit = n
 	}
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Bearer ") {
-		failure(w, op.ErrUnauthenticated)
+		h.failure(w, op.ErrUnauthenticated)
 		return
 	}
 	q := r.URL.Query()
 	out, e := h.Service.Read(r.Context(), strings.TrimPrefix(auth, "Bearer "), scope, op.Query{ID: q.Get("id"), Kind: q.Get("kind"), Query: q.Get("query"), TermID: q.Get("term_id"), TargetID: q.Get("target_id"), After: q.Get("after"), Limit: limit})
 	if e != nil {
-		failure(w, e)
+		h.failure(w, e)
 		return
 	}
 	write(w, 200, out)

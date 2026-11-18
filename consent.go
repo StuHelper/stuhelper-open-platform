@@ -36,14 +36,17 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 				return out, auditSpec{}, e
 			}
 			if pending >= 100 {
-				return out, auditSpec{}, ErrConflict
+				return out, auditSpec{}, WithReason(ErrConflict, "pending_consent_limit_reached")
 			}
 			a, e := s.validApp(t, in.ClientID)
 			if e != nil {
 				return out, auditSpec{}, e
 			}
-			if !slices.Contains(a.View.RedirectURIs, in.RedirectURI) || !subset(in.Scopes, a.View.ApprovedScopes) {
-				return out, auditSpec{}, ErrForbidden
+			if !slices.Contains(a.View.RedirectURIs, in.RedirectURI) {
+				return out, auditSpec{}, WithReason(ErrForbidden, "redirect_uri_mismatch")
+			}
+			if !subset(in.Scopes, a.View.ApprovedScopes) {
+				return out, auditSpec{}, WithReason(ErrForbidden, "scope_not_authorized")
 			}
 			id, e := s.random()
 			if e != nil {
@@ -112,7 +115,7 @@ func (s *Service) Consent(ctx context.Context, p Principal, id string) (Consent,
 			return ErrNotFound
 		}
 		if !s.now().Before(c.View.ExpiresAt) {
-			return ErrConflict
+			return WithReason(ErrConflict, "consent_expired")
 		}
 		out = c.View
 		if out.ActiveGrantedScopes == nil {
@@ -177,15 +180,18 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 			if e != nil {
 				return out, auditSpec{}, e
 			}
-			if c.Decision != "" || !s.now().Before(c.View.ExpiresAt) {
-				return out, auditSpec{}, ErrConflict
+			if c.Decision != "" {
+				return out, auditSpec{}, WithReason(ErrConflict, "consent_already_decided")
+			}
+			if !s.now().Before(c.View.ExpiresAt) {
+				return out, auditSpec{}, WithReason(ErrConflict, "consent_expired")
 			}
 			a, e := s.validApp(t, c.Input.ClientID)
 			if e != nil {
 				return out, auditSpec{}, e
 			}
 			if a.View.Revision != c.AppRevision {
-				return out, auditSpec{}, ErrConflict
+				return out, auditSpec{}, WithReason(ErrConflict, "application_revision_changed")
 			}
 			u, _ := url.Parse(c.Input.RedirectURI)
 			q := u.Query()
@@ -195,7 +201,7 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 			c.Selected = in.Scopes
 			if in.Decision == "deny" {
 				if !subset(in.Scopes, c.Input.Scopes) || !subset(in.Scopes, a.View.ApprovedScopes) {
-					return out, auditSpec{}, ErrForbidden
+					return out, auditSpec{}, WithReason(ErrForbidden, "scope_not_authorized")
 				}
 				q.Set("error", "access_denied")
 			} else {
@@ -220,7 +226,7 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 					allowedScopes = union(c.Input.Scopes, existingActive)
 				}
 				if !subset(in.Scopes, allowedScopes) || !subset(in.Scopes, a.View.ApprovedScopes) {
-					return out, auditSpec{}, ErrForbidden
+					return out, auditSpec{}, WithReason(ErrForbidden, "scope_not_authorized")
 				}
 				nextScopes := in.Scopes
 				if mode == "merge" && len(existingActive) > 0 {
