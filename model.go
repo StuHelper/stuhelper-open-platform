@@ -132,6 +132,13 @@ type GrantRecord struct {
 	Owner       string
 	AppRevision int64
 }
+type GrantSummary struct {
+	Record         GrantRecord
+	AppState       string
+	CurrentAppRev  int64
+	OwnerClosed    bool
+	AppOwnerClosed bool
+}
 type RevokeInput struct {
 	Revision int64    `json:"revision"`
 	Scopes   []string `json:"scopes"`
@@ -232,7 +239,8 @@ type Source interface {
 	Read(context.Context, string, string, Query) (Data, error)
 }
 type Repository interface {
-	Transaction(context.Context, string, string, func(Transaction) error) error
+	Transaction(context.Context, string, string, bool, func(Transaction) error) error
+	LocateApp(context.Context, string) (AppRecord, error)
 	LocateConsent(context.Context, string) (ConsentRecord, error)
 	LocateCode(context.Context, string) (ConsentRecord, error)
 	LocateToken(context.Context, string) (TokenRecord, GrantRecord, error)
@@ -252,14 +260,16 @@ type Transaction interface {
 	SaveConsent(ConsentRecord) error
 	Grant(string) (GrantRecord, error)
 	OwnerGrant(string, string) (GrantRecord, error)
-	Grants(string, string, int) ([]GrantRecord, error)
+	Grants(string, string, int) ([]GrantSummary, error)
 	SaveGrant(GrantRecord) error
 	Token(string) (TokenRecord, error)
 	SaveToken(TokenRecord) error
 	RevokeCodeTokens(string, string) error
 	Quota(string, string, int) error
+	LockAppAck(string) error
 	Notice(string) (Notice, error)
 	Notices(string, string, int) ([]Notice, error)
+	MarkNoticesSeen([]string, time.Time) error
 	SaveNotice(Notice) error
 	Replay(string, string) (string, json.RawMessage, error)
 	SaveReplay(string, string, string, json.RawMessage) error

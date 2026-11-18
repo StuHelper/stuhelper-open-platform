@@ -1,10 +1,14 @@
 CREATE SCHEMA IF NOT EXISTS open_platform;
 REVOKE ALL ON SCHEMA open_platform FROM PUBLIC;
 CREATE TABLE IF NOT EXISTS open_platform.owners(owner_key text PRIMARY KEY, closed boolean NOT NULL DEFAULT false, closure_id text NOT NULL DEFAULT '');
+CREATE INDEX IF NOT EXISTS owners_closed ON open_platform.owners(owner_key) WHERE closed;
 CREATE TABLE IF NOT EXISTS open_platform.apps(id text PRIMARY KEY,owner_key text NOT NULL,state text NOT NULL,revision bigint NOT NULL,secret_hash text NOT NULL,document jsonb NOT NULL);
 CREATE INDEX IF NOT EXISTS apps_owner ON open_platform.apps(owner_key,id);
+CREATE INDEX IF NOT EXISTS apps_inactive ON open_platform.apps(id) WHERE state<>'active';
+CREATE INDEX IF NOT EXISTS apps_revised ON open_platform.apps(id,revision) WHERE state='active' AND revision>1;
 CREATE TABLE IF NOT EXISTS open_platform.grants(id text PRIMARY KEY,app_id text NOT NULL REFERENCES open_platform.apps(id),owner_key text NOT NULL,app_revision bigint NOT NULL,state text NOT NULL,expires_at timestamptz NOT NULL,document jsonb NOT NULL,UNIQUE(app_id,owner_key));
 CREATE INDEX IF NOT EXISTS grants_owner ON open_platform.grants(owner_key,id);
+CREATE INDEX IF NOT EXISTS grants_active_owner ON open_platform.grants(owner_key,id) WHERE state='active';
 CREATE INDEX IF NOT EXISTS grants_expiry ON open_platform.grants(expires_at,id) WHERE state='active';
 CREATE INDEX IF NOT EXISTS grants_app_revision ON open_platform.grants(app_id,app_revision,id) WHERE state='active';
 CREATE TABLE IF NOT EXISTS open_platform.consents(id text PRIMARY KEY,owner_key text NOT NULL,app_id text NOT NULL REFERENCES open_platform.apps(id),code_hash text UNIQUE,expires_at timestamptz NOT NULL,document jsonb NOT NULL);
@@ -18,6 +22,7 @@ REVOKE ALL ON ALL TABLES IN SCHEMA open_platform FROM PUBLIC;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA open_platform FROM PUBLIC;
 
 CREATE INDEX IF NOT EXISTS consents_pending_owner ON open_platform.consents(owner_key) WHERE COALESCE(document->>'Decision','')='';
+CREATE INDEX IF NOT EXISTS consents_pending_owner_expiry ON open_platform.consents(owner_key,expires_at) WHERE COALESCE(document->>'Decision','')='';
 
 CREATE INDEX IF NOT EXISTS requests_expiry ON open_platform.requests(created_at,actor,key);
 CREATE INDEX IF NOT EXISTS tokens_expiry ON open_platform.tokens(expires_at,hash);

@@ -36,6 +36,7 @@ scenario_tests:
   OP-03:
     - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
+    - locking_performance_test.go#TestNoticesPreventUnauthenticatedAppEnumerationAvoidLockContentionAndEliminateNPlusOneAndFullScan
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
   OP-10:

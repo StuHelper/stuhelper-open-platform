@@ -25,7 +25,7 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 	if e != nil || len(b) != 32 || base64.RawURLEncoding.EncodeToString(b) != in.Challenge {
 		return out, ErrInput
 	}
-	e = s.transaction(ctx, p.Owner, in.ClientID, func(t Transaction) error {
+	e = s.sharedTransaction(ctx, p.Owner, in.ClientID, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
@@ -60,7 +60,7 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 }
 func (s *Service) Consent(ctx context.Context, p Principal, id string) (Consent, error) {
 	var out Consent
-	e := s.transaction(ctx, p.Owner, "", func(t Transaction) error {
+	e := s.sharedTransaction(ctx, p.Owner, "", func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
@@ -99,7 +99,7 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 	if located.Owner != p.Owner {
 		return out, ErrNotFound
 	}
-	e = s.transaction(ctx, p.Owner, located.Input.ClientID, func(t Transaction) error {
+	e = s.sharedTransaction(ctx, p.Owner, located.Input.ClientID, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
@@ -227,7 +227,7 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 	if e != nil {
 		return out, lookupError(e)
 	}
-	e = s.transaction(ctx, located.Owner, located.Input.ClientID, func(t Transaction) error {
+	e = s.sharedTransaction(ctx, located.Owner, located.Input.ClientID, func(t Transaction) error {
 		if e := s.activeOwner(t, located.Owner); e != nil {
 			return e
 		}

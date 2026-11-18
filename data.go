@@ -72,7 +72,7 @@ func (s *Service) Read(ctx context.Context, token, scope string, q Query) (Data,
 		return out, lookupError(e)
 	}
 	var grant GrantRecord
-	e = s.transaction(ctx, located.Owner, located.View.AppID, func(t Transaction) error { var e error; grant, e = s.authorizeToken(t, h, scope, true); return e })
+	e = s.sharedTransaction(ctx, located.Owner, located.View.AppID, func(t Transaction) error { var e error; grant, e = s.authorizeToken(t, h, scope, true); return e })
 	if e != nil {
 		return out, e
 	}
@@ -93,7 +93,7 @@ func (s *Service) Read(ctx context.Context, token, scope string, q Query) (Data,
 		return out, e
 	}
 	// Recheck after provider I/O. A concurrent withdrawal must discard already-fetched data.
-	e = s.transaction(ctx, located.Owner, located.View.AppID, func(t Transaction) error {
+	e = s.sharedTransaction(ctx, located.Owner, located.View.AppID, func(t Transaction) error {
 		current, e := s.authorizeToken(t, h, scope, false)
 		if e != nil {
 			return e

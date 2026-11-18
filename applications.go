@@ -64,7 +64,7 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 }
 func (s *Service) Application(ctx context.Context, p Principal, id string) (Application, error) {
 	var out Application
-	e := s.transaction(ctx, p.Owner, id, func(t Transaction) error {
+	e := s.sharedTransaction(ctx, p.Owner, id, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
@@ -92,7 +92,7 @@ func (s *Service) Applications(ctx context.Context, p Principal, admin bool, aft
 	if e != nil {
 		return out, e
 	}
-	e = s.transaction(ctx, p.Owner, "", func(t Transaction) error {
+	e = s.sharedTransaction(ctx, p.Owner, "", func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
@@ -228,6 +228,9 @@ func (s *Service) validApp(t Transaction, id string) (AppRecord, error) {
 func authenticatedApp(t Transaction, p Principal, id, secret string) (AppRecord, error) {
 	a, e := t.App(id)
 	if e != nil {
+		if secret != "" {
+			return a, lookupError(e)
+		}
 		return a, e
 	}
 	if secret != "" {
