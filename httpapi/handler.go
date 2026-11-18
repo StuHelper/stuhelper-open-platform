@@ -109,65 +109,103 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		failure(w, op.ErrInput)
 		return
 	}
-	after, limit, e := queryPage(r)
-	if e != nil {
-		failure(w, e)
-		return
+	noQuery := func() bool {
+		if len(r.URL.RawQuery) != 0 {
+			e = op.ErrInput
+			return false
+		}
+		return true
 	}
 	switch {
 	case path == "apps" && r.Method == "POST":
-		var in op.ApplicationInput
-		if e = body(r, &in); e == nil {
-			result, e = h.Service.Apply(r.Context(), p, "", key, in)
+		if noQuery() {
+			var in op.ApplicationInput
+			if e = body(r, &in); e == nil {
+				result, e = h.Service.Apply(r.Context(), p, "", key, in)
+			}
 		}
 	case path == "apps" && r.Method == "GET":
-		result, e = h.Service.Applications(r.Context(), p, false, after, limit)
+		var after string
+		var limit int
+		if after, limit, e = queryPage(r); e == nil {
+			result, e = h.Service.Applications(r.Context(), p, false, after, limit)
+		}
 	case path == "admin/apps" && r.Method == "GET":
-		result, e = h.Service.Applications(r.Context(), p, true, after, limit)
+		var after string
+		var limit int
+		if after, limit, e = queryPage(r); e == nil {
+			result, e = h.Service.Applications(r.Context(), p, true, after, limit)
+		}
 	case len(parts) == 2 && parts[0] == "apps" && r.Method == "GET":
-		result, e = h.Service.Application(r.Context(), p, parts[1])
+		if noQuery() {
+			result, e = h.Service.Application(r.Context(), p, parts[1])
+		}
 	case len(parts) == 3 && parts[0] == "apps" && parts[2] == "submit" && r.Method == "POST":
-		var in op.ApplicationInput
-		if e = body(r, &in); e == nil {
-			result, e = h.Service.Apply(r.Context(), p, parts[1], key, in)
+		if noQuery() {
+			var in op.ApplicationInput
+			if e = body(r, &in); e == nil {
+				result, e = h.Service.Apply(r.Context(), p, parts[1], key, in)
+			}
 		}
 	case len(parts) == 4 && parts[0] == "admin" && parts[1] == "apps" && parts[3] == "review" && r.Method == "POST":
-		var in op.ReviewInput
-		if e = body(r, &in); e == nil {
-			result, e = h.Service.Review(r.Context(), p, parts[2], key, in)
+		if noQuery() {
+			var in op.ReviewInput
+			if e = body(r, &in); e == nil {
+				result, e = h.Service.Review(r.Context(), p, parts[2], key, in)
+			}
 		}
 	case len(parts) == 3 && parts[0] == "apps" && parts[2] == "credential" && r.Method == "POST":
-		var in struct {
-			Revision int64 `json:"revision"`
-		}
-		if e = body(r, &in); e == nil {
-			result, e = h.Service.RotateCredential(r.Context(), p, parts[1], key, in.Revision)
+		if noQuery() {
+			var in struct {
+				Revision int64 `json:"revision"`
+			}
+			if e = body(r, &in); e == nil {
+				result, e = h.Service.RotateCredential(r.Context(), p, parts[1], key, in.Revision)
+			}
 		}
 	case path == "consents" && r.Method == "POST":
-		var in op.ConsentInput
-		if e = body(r, &in); e == nil {
-			result, e = h.Service.PrepareConsent(r.Context(), p, key, in)
+		if noQuery() {
+			var in op.ConsentInput
+			if e = body(r, &in); e == nil {
+				result, e = h.Service.PrepareConsent(r.Context(), p, key, in)
+			}
 		}
 	case len(parts) == 2 && parts[0] == "consents" && r.Method == "GET":
-		result, e = h.Service.Consent(r.Context(), p, parts[1])
+		if noQuery() {
+			result, e = h.Service.Consent(r.Context(), p, parts[1])
+		}
 	case len(parts) == 3 && parts[0] == "consents" && parts[2] == "decision" && r.Method == "POST":
-		var in op.ConsentDecision
-		if e = body(r, &in); e == nil {
-			result, e = h.Service.Decide(r.Context(), p, parts[1], key, in)
+		if noQuery() {
+			var in op.ConsentDecision
+			if e = body(r, &in); e == nil {
+				result, e = h.Service.Decide(r.Context(), p, parts[1], key, in)
+			}
 		}
 	case path == "grants" && r.Method == "GET":
-		result, e = h.Service.Grants(r.Context(), p, after, limit)
+		var after string
+		var limit int
+		if after, limit, e = queryPage(r); e == nil {
+			result, e = h.Service.Grants(r.Context(), p, after, limit)
+		}
 	case len(parts) == 3 && parts[0] == "grants" && parts[2] == "revoke" && r.Method == "POST":
-		var in op.RevokeInput
-		if e = body(r, &in); e == nil {
-			result, e = h.Service.Revoke(r.Context(), p, parts[1], key, in)
+		if noQuery() {
+			var in op.RevokeInput
+			if e = body(r, &in); e == nil {
+				result, e = h.Service.Revoke(r.Context(), p, parts[1], key, in)
+			}
 		}
 	case noticeRoute && len(parts) == 3 && r.Method == "GET":
-		result, e = h.Service.Notices(r.Context(), p, parts[1], secret, after, limit)
+		var after string
+		var limit int
+		if after, limit, e = queryPage(r); e == nil {
+			result, e = h.Service.Notices(r.Context(), p, parts[1], secret, after, limit)
+		}
 	case noticeRoute && len(parts) == 5 && parts[4] == "ack" && r.Method == "POST":
-		var in op.Acknowledgement
-		if e = body(r, &in); e == nil {
-			result, e = h.Service.Acknowledge(r.Context(), p, parts[1], secret, parts[3], key, in)
+		if noQuery() {
+			var in op.Acknowledgement
+			if e = body(r, &in); e == nil {
+				result, e = h.Service.Acknowledge(r.Context(), p, parts[1], secret, parts[3], key, in)
+			}
 		}
 	default:
 		e = op.ErrNotFound

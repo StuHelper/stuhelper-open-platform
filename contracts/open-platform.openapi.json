@@ -2018,14 +2018,18 @@
               "type": "string",
               "maxLength": 2048
             },
-            "maxItems": 10
+            "minItems": 1,
+            "maxItems": 10,
+            "uniqueItems": true
           },
           "requested_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "client_type": {
             "type": "string",
@@ -2069,21 +2073,26 @@
               "type": "string",
               "maxLength": 2048
             },
-            "maxItems": 10
+            "minItems": 1,
+            "maxItems": 10,
+            "uniqueItems": true
           },
           "requested_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "approved_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "client_type": {
             "type": "string",
@@ -2158,7 +2167,8 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "policy": {
             "$ref": "#/components/schemas/Policy"
@@ -2229,6 +2239,7 @@
           },
           "state": {
             "type": "string",
+            "minLength": 16,
             "maxLength": 512
           },
           "scope": {
@@ -2236,7 +2247,9 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "code_challenge": {
             "type": "string",
@@ -2274,7 +2287,9 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "redirect_uri": {
             "type": "string",
@@ -2294,6 +2309,7 @@
               ]
             },
             "maxItems": 2,
+            "uniqueItems": true,
             "description": "Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested."
           }
         },
@@ -2322,7 +2338,8 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "maxItems": 8,
+            "uniqueItems": true
           }
         },
         "required": [
@@ -2439,7 +2456,8 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "state": {
             "type": "string",
@@ -2481,7 +2499,9 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           }
         },
         "required": [
@@ -2510,7 +2530,9 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "reason": {
             "type": "string",
@@ -2707,11 +2729,11 @@
           },
           "nickname": {
             "type": "string",
-            "maxLength": 80
+            "maxLength": 20
           },
           "bio": {
             "type": "string",
-            "maxLength": 480
+            "maxLength": 120
           }
         },
         "required": [
