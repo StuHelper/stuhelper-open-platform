@@ -55,6 +55,8 @@ type Application struct {
 type AppRecord struct {
 	View              Application
 	Owner, SecretHash string
+	UpdatedAt         time.Time
+	TerminatedAt      *time.Time
 }
 type ReviewInput struct {
 	Revision       int64    `json:"revision"`
@@ -128,9 +130,11 @@ type Grant struct {
 	Revision  int64     `json:"revision"`
 }
 type GrantRecord struct {
-	View        Grant
-	Owner       string
-	AppRevision int64
+	View         Grant
+	Owner        string
+	AppRevision  int64
+	UpdatedAt    time.Time
+	TerminatedAt *time.Time
 }
 type RevokeInput struct {
 	Revision int64    `json:"revision"`
@@ -246,7 +250,7 @@ type Transaction interface {
 	Apps(string, bool, string, int) ([]AppRecord, error)
 	SaveApp(AppRecord) error
 	CountApps(string) (int, error)
-	SuspendOwnedApps(string) error
+	SuspendOwnedApps(string, time.Time) error
 	Consent(string) (ConsentRecord, error)
 	PendingConsents(string, time.Time) (int, error)
 	SaveConsent(ConsentRecord) error
@@ -262,6 +266,6 @@ type Transaction interface {
 	Notices(string, string, int) ([]Notice, error)
 	SaveNotice(Notice) error
 	Replay(string, string) (string, json.RawMessage, error)
-	SaveReplay(string, string, string, json.RawMessage) error
-	Event(string, string, string, string) error
+	SaveReplay(string, string, string, json.RawMessage, time.Time) error
+	Event(string, string, string, string, string, time.Time) error
 }
