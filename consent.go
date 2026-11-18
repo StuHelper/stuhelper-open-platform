@@ -92,14 +92,16 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 	if e != nil || (in.Decision != "approve" && in.Decision != "deny") || (in.Decision == "deny" && len(in.Scopes) != 0) {
 		return out, ErrInput
 	}
-	located, e := s.Repo.LocateConsent(ctx, id)
+	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	located, e := s.Repo.LocateConsent(dbCtx, id)
 	if e != nil {
 		return out, e
 	}
 	if located.Owner != p.Owner {
 		return out, ErrNotFound
 	}
-	e = s.transaction(ctx, p.Owner, located.Input.ClientID, func(t Transaction) error {
+	e = s.transaction(dbCtx, p.Owner, located.Input.ClientID, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
@@ -223,17 +225,22 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 	if in.GrantType != "authorization_code" || len(in.Code) > 160 || !validVerifier(in.Verifier) {
 		return out, ErrInput
 	}
-	located, e := s.Repo.LocateCode(ctx, hash(in.Code))
+	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	located, e := s.Repo.LocateCode(dbCtx, hash(in.Code))
 	if e != nil {
 		return out, lookupError(e)
 	}
-	e = s.transaction(ctx, located.Owner, located.Input.ClientID, func(t Transaction) error {
+	e = s.transaction(dbCtx, located.Owner, located.Input.ClientID, func(t Transaction) error {
 		if e := s.activeOwner(t, located.Owner); e != nil {
 			return e
 		}
 		c, e := t.Consent(located.View.ID)
 		if e != nil {
 			return lookupError(e)
+		}
+		if c.Input.ClientID != in.ClientID {
+			return ErrUnauthenticated
 		}
 		a, e := s.validApp(t, c.Input.ClientID)
 		if e != nil {
@@ -246,7 +253,7 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 			return ErrInput
 		}
 		challenge := sha256.Sum256([]byte(in.Verifier))
-		if c.Decision != "approve" || c.Input.ClientID != in.ClientID || c.Input.RedirectURI != in.RedirectURI || a.View.Revision != c.View.Application.Revision || base64.RawURLEncoding.EncodeToString(challenge[:]) != c.Input.Challenge {
+		if c.Decision != "approve" || c.Input.RedirectURI != in.RedirectURI || a.View.Revision != c.View.Application.Revision || base64.RawURLEncoding.EncodeToString(challenge[:]) != c.Input.Challenge {
 			return ErrUnauthenticated
 		}
 		if c.Consumed {

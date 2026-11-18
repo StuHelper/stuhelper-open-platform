@@ -52,6 +52,8 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	return tx.Commit()
 }
 func (r *Repository) Ready(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	var ok bool
 	e := r.DB.QueryRowContext(ctx, `SELECT to_regclass('open_platform.apps') IS NOT NULL AND to_regclass('open_platform.notices') IS NOT NULL`).Scan(&ok)
 	if e != nil || !ok {
@@ -60,6 +62,8 @@ func (r *Repository) Ready(ctx context.Context) error {
 	return nil
 }
 func (r *Repository) CheckRuntime(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	var unsafe bool
 	e := r.DB.QueryRowContext(ctx, `SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolbypassrls OR has_schema_privilege(current_user,'open_platform','CREATE') OR has_table_privilege(current_user,'open_platform.events','UPDATE') OR has_table_privilege(current_user,'open_platform.requests','UPDATE') OR has_table_privilege(current_user,'open_platform.tokens','UPDATE') FROM pg_roles WHERE rolname=current_user`).Scan(&unsafe)
 	if e != nil || unsafe {
@@ -204,9 +208,13 @@ func (t *transaction) SaveConsent(c op.ConsentRecord) error {
 	return safe(e)
 }
 func (r *Repository) LocateConsent(ctx context.Context, id string) (op.ConsentRecord, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	return decode[op.ConsentRecord](r.DB.QueryRowContext(ctx, `SELECT document FROM open_platform.consents WHERE id=$1`, id))
 }
 func (r *Repository) LocateCode(ctx context.Context, h string) (op.ConsentRecord, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	return decode[op.ConsentRecord](r.DB.QueryRowContext(ctx, `SELECT document FROM open_platform.consents WHERE code_hash=$1`, h))
 }
 func (t *transaction) Grant(id string) (op.GrantRecord, error) {
@@ -216,6 +224,8 @@ func (t *transaction) OwnerGrant(owner, app string) (op.GrantRecord, error) {
 	return decode[op.GrantRecord](t.tx.QueryRowContext(t.ctx, `SELECT document FROM open_platform.grants WHERE owner_key=$1 AND app_id=$2`, owner, app))
 }
 func (r *Repository) LocateGrant(ctx context.Context, id string) (op.GrantRecord, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	return decode[op.GrantRecord](r.DB.QueryRowContext(ctx, `SELECT document FROM open_platform.grants WHERE id=$1`, id))
 }
 func (t *transaction) Grants(owner, after string, limit int) ([]op.GrantRecord, error) {
@@ -254,6 +264,8 @@ func (t *transaction) SaveToken(v op.TokenRecord) error {
 	return safe(e)
 }
 func (r *Repository) LocateToken(ctx context.Context, h string) (op.TokenRecord, op.GrantRecord, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	v, e := decode[op.TokenRecord](r.DB.QueryRowContext(ctx, `SELECT document FROM open_platform.tokens WHERE hash=$1`, h))
 	if e != nil {
 		return v, op.GrantRecord{}, e
@@ -311,6 +323,8 @@ func (t *transaction) Event(actor, kind, object, key string) error {
 	return safe(e)
 }
 func (r *Repository) WorkCandidates(ctx context.Context, now time.Time, limit int) ([]op.GrantRecord, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	rows, e := r.DB.QueryContext(ctx, `SELECT g.document FROM open_platform.grants g JOIN open_platform.apps a ON a.id=g.app_id LEFT JOIN open_platform.owners u ON u.owner_key=g.owner_key LEFT JOIN open_platform.owners d ON d.owner_key=a.owner_key WHERE g.state='active' AND (g.expires_at<=$1 OR g.app_revision<>a.revision OR a.state<>'active' OR u.closed OR d.closed) ORDER BY g.id LIMIT $2`, now, limit)
 	if e != nil {
 		return nil, safe(e)
