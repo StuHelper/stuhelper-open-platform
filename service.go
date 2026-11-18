@@ -119,7 +119,15 @@ func (s *Service) activeOwner(t Transaction, owner string) error {
 	}
 	return nil
 }
-func replay[T any](t Transaction, actor, key, op string, in any, run func() (T, error)) (T, error) {
+
+type auditSpec struct {
+	actor  string
+	action string
+	target string
+	reason string
+}
+
+func replay[T any](t Transaction, scope, key, op string, in any, at time.Time, run func() (T, auditSpec, error)) (T, error) {
 	var out T
 	if !validToken(key, 128) {
 		return out, ErrInput
@@ -132,7 +140,7 @@ func replay[T any](t Transaction, actor, key, op string, in any, run func() (T, 
 		return out, ErrInput
 	}
 	digest := hash(string(b))
-	old, body, e := t.Replay(actor, key)
+	old, body, e := t.Replay(scope, key)
 	if e == nil {
 		if old != digest {
 			return out, ErrConflict
@@ -145,7 +153,8 @@ func replay[T any](t Transaction, actor, key, op string, in any, run func() (T, 
 	if !errors.Is(e, ErrNotFound) {
 		return out, e
 	}
-	out, e = run()
+	var ev auditSpec
+	out, ev, e = run()
 	if e != nil {
 		return out, e
 	}
@@ -153,10 +162,18 @@ func replay[T any](t Transaction, actor, key, op string, in any, run func() (T, 
 	if e != nil {
 		return out, ErrUnavailable
 	}
-	if e = t.SaveReplay(actor, key, digest, body); e != nil {
+	if e = t.SaveReplay(scope, key, digest, body, at); e != nil {
 		return out, e
 	}
-	return out, t.Event(actor, op, "", key)
+	actor := ev.actor
+	if actor == "" {
+		actor = scope
+	}
+	action := ev.action
+	if action == "" {
+		action = op
+	}
+	return out, t.Event(actor, action, ev.target, key, ev.reason, at)
 }
 func page[T any](items []T, limit int, id func(T) string) Page[T] {
 	out := Page[T]{Items: items}

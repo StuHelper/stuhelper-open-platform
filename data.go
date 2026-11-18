@@ -38,7 +38,7 @@ func (s *Service) authorizeToken(t Transaction, h, scope string, count bool) (Gr
 		if e = t.Quota(a.View.ID, s.now().Format("2006-01-02"), a.View.Policy.DailyQuota); e != nil {
 			return empty, e
 		}
-		if e = t.Event(g.Owner, "data_requested", g.View.ID, scope); e != nil {
+		if e = t.Event(g.Owner, "data_requested", g.View.ID, scope, "", s.now()); e != nil {
 			return empty, e
 		}
 	}
@@ -105,7 +105,7 @@ func (s *Service) Read(ctx context.Context, token, scope string, q Query) (Data,
 			value.Profile = &profile
 		}
 		value.Scope = scope
-		return t.Event(grant.Owner, "data_returned", grant.View.ID, scope)
+		return t.Event(grant.Owner, "data_returned", grant.View.ID, scope, "", s.now())
 	})
 	if e != nil {
 		return out, e

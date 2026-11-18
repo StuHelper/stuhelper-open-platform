@@ -18,33 +18,33 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 			return e
 		}
 		var e error
-		out, e = replay(t, p.Owner, key, "application:"+id, in, func() (Application, error) {
+		out, e = replay(t, p.Owner, key, "application:"+id, in, s.now(), func() (Application, auditSpec, error) {
 			now := s.now()
 			var a AppRecord
 			if id == "" {
 				n, e := t.CountApps(p.Owner)
 				if e != nil {
-					return out, e
+					return out, auditSpec{}, e
 				}
 				if n >= 100 {
-					return out, ErrConflict
+					return out, auditSpec{}, ErrConflict
 				}
 				id, e = s.random()
 				if e != nil {
-					return out, e
+					return out, auditSpec{}, e
 				}
 				a = AppRecord{Owner: p.Owner, UpdatedAt: now, View: Application{ID: id, Revision: 1, CreatedAt: now, ApprovedScopes: []string{}}}
 			} else {
 				var e error
 				a, e = t.App(id)
 				if e != nil {
-					return out, e
+					return out, auditSpec{}, e
 				}
 				if a.Owner != p.Owner {
-					return out, ErrNotFound
+					return out, auditSpec{}, ErrNotFound
 				}
 				if a.View.State == "active" || a.View.State == "suspended" || a.View.Revision != in.Revision {
-					return out, ErrConflict
+					return out, auditSpec{}, ErrConflict
 				}
 				a.View.Revision++
 				a.View.ApprovedScopes = []string{}
@@ -61,9 +61,9 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 			a.View.ClientType = in.ClientType
 			a.View.State = "pending"
 			if e := t.SaveApp(a); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
-			return a.View, nil
+			return a.View, auditSpec{actor: p.Owner, action: "application_submitted", target: a.View.ID}, nil
 		})
 		return e
 	})
@@ -146,19 +146,19 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 			return e
 		}
 		var e error
-		out, e = replay(t, p.Owner, key, "review:"+id, in, func() (Application, error) {
+		out, e = replay(t, p.Owner, key, "review:"+id, in, s.now(), func() (Application, auditSpec, error) {
 			a, e := t.App(id)
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			if e = s.activeOwner(t, a.Owner); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			if a.View.Revision != in.Revision {
-				return out, ErrConflict
+				return out, auditSpec{}, ErrConflict
 			}
 			if !subset(in.ApprovedScopes, a.View.RequestedScopes) {
-				return out, ErrInput
+				return out, auditSpec{}, ErrInput
 			}
 			now := s.now()
 			a.UpdatedAt = now
@@ -178,9 +178,9 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 			a.View.Revision++
 			a.View.Note = in.Note
 			if e = t.SaveApp(a); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
-			return a.View, nil
+			return a.View, auditSpec{actor: p.Owner, action: "application_reviewed", target: a.View.ID, reason: in.Note}, nil
 		})
 		return e
 	})
@@ -206,22 +206,22 @@ func (s *Service) RotateCredential(ctx context.Context, p Principal, id, key str
 		if a.Owner != p.Owner {
 			return ErrNotFound
 		}
-		out, e = replay(t, p.Owner, key, "credential:"+id, revision, func() (Credential, error) {
+		out, e = replay(t, p.Owner, key, "credential:"+id, revision, s.now(), func() (Credential, auditSpec, error) {
 			if a.View.ClientType != "confidential" || a.View.CredentialRevision != revision {
-				return out, ErrConflict
+				return out, auditSpec{}, ErrConflict
 			}
 			v, e := s.random()
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			secret = "opsecret_" + v
 			a.SecretHash = hash(secret)
 			a.View.CredentialRevision++
 			a.UpdatedAt = s.now()
 			if e = t.SaveApp(a); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
-			return Credential{AppID: id, Revision: a.View.CredentialRevision, Retrievable: false}, nil
+			return Credential{AppID: id, Revision: a.View.CredentialRevision, Retrievable: false}, auditSpec{actor: p.Owner, action: "credential_rotated", target: id}, nil
 		})
 		return e
 	})

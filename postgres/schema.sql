@@ -37,5 +37,10 @@ CREATE OR REPLACE FUNCTION open_platform.audit_project() RETURNS trigger LANGUAG
 CREATE OR REPLACE TRIGGER audit_project BEFORE INSERT OR UPDATE ON open_platform.events FOR EACH ROW EXECUTE FUNCTION open_platform.audit_project();
 CREATE OR REPLACE FUNCTION open_platform.audit_invalidate() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$ BEGIN UPDATE open_platform.audit_retention SET revision=revision+1 WHERE singleton; RETURN NULL; END $$;
 REVOKE ALL ON FUNCTION open_platform.audit_invalidate() FROM PUBLIC;
-CREATE OR REPLACE TRIGGER audit_invalidate AFTER UPDATE OR DELETE OR TRUNCATE ON open_platform.events FOR EACH STATEMENT EXECUTE FUNCTION open_platform.audit_invalidate();
+CREATE OR REPLACE FUNCTION open_platform.audit_invalidate_rows() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$ BEGIN IF EXISTS (SELECT 1 FROM affected_rows) THEN UPDATE open_platform.audit_retention SET revision=revision+1 WHERE singleton; END IF; RETURN NULL; END $$;
+REVOKE ALL ON FUNCTION open_platform.audit_invalidate_rows() FROM PUBLIC;
+DROP TRIGGER IF EXISTS audit_invalidate ON open_platform.events;
+CREATE OR REPLACE TRIGGER audit_invalidate_update AFTER UPDATE ON open_platform.events REFERENCING OLD TABLE AS affected_rows FOR EACH STATEMENT EXECUTE FUNCTION open_platform.audit_invalidate_rows();
+CREATE OR REPLACE TRIGGER audit_invalidate_delete AFTER DELETE ON open_platform.events REFERENCING OLD TABLE AS affected_rows FOR EACH STATEMENT EXECUTE FUNCTION open_platform.audit_invalidate_rows();
+CREATE OR REPLACE TRIGGER audit_invalidate_truncate AFTER TRUNCATE ON open_platform.events FOR EACH STATEMENT EXECUTE FUNCTION open_platform.audit_invalidate();
 CREATE INDEX IF NOT EXISTS audit_query_order ON open_platform.events(audit_time DESC,(id::text) COLLATE "C" DESC);
