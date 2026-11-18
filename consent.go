@@ -151,9 +151,10 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 						return out, e
 					}
 					removed := difference(g.View.Scopes, in.Scopes)
-					if reason != "" {
+					if a.View.Revision != g.AppRevision {
+						reason = "application_changed"
 						removed = g.View.Scopes
-					} else {
+					} else if reason == "" {
 						reason = "consent_changed"
 					}
 					if len(removed) > 0 {
@@ -162,12 +163,15 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 						}
 					}
 				}
+				now := s.now()
 				g.View.AppName = a.View.Name
 				g.View.Scopes = in.Scopes
 				g.View.State = "active"
 				g.View.Revision++
 				g.AppRevision = a.View.Revision
-				g.View.ExpiresAt = s.now().Add(time.Duration(a.View.Policy.GrantSeconds) * time.Second)
+				g.View.ExpiresAt = now.Add(time.Duration(a.View.Policy.GrantSeconds) * time.Second)
+				g.UpdatedAt = now
+				g.TerminatedAt = nil
 				if e = t.SaveGrant(g); e != nil {
 					return out, e
 				}

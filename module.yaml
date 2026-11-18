@@ -36,6 +36,7 @@ scenario_tests:
   OP-03:
     - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
+    - lifecycle_transitions_test.go#TestRevokeAndReconsentStateMachineSuspendedResubmitAckMonotonicityAndTerminationTimestamps
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
   OP-10:
