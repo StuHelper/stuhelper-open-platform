@@ -38,6 +38,7 @@ scenario_tests:
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
+    - token_protocol_test.go#TestTokenEndpointAcceptsBrowserFormMediaTypeAndMapsTransientErrorsTo503
   OP-10:
     - repair_test.go#TestCodeReplayRevokesIssuedTokenAndProfileIdentifiersArePairwise
   RET-05:
