@@ -38,7 +38,7 @@ func (s *Service) now() time.Time {
 }
 func (s *Service) ready() error {
 	u, e := url.Parse(s.Issuer)
-	if s.Repo == nil || len(s.CodeKey) != 32 || e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+	if s.Repo == nil || len(s.CodeKey) != 32 || s.Issuer == "" || len(s.Issuer) > 512 || !utf8.ValidString(s.Issuer) || strings.ContainsFunc(s.Issuer, func(r rune) bool { return unicode.IsControl(r) || unicode.IsSpace(r) }) || strings.Contains(s.Issuer, "#") || e != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Opaque != "" || u.RawQuery != "" || u.Fragment != "" {
 		return ErrUnavailable
 	}
 	return nil
@@ -62,6 +62,13 @@ func (s *Service) code(id string) string {
 	m := hmac.New(sha256.New, s.CodeKey)
 	m.Write([]byte("open-platform-code:" + id))
 	return "opc_" + base64.RawURLEncoding.EncodeToString(m.Sum(nil))
+}
+func validToken(v string, maxBytes int) bool {
+	return v != "" && len(v) <= maxBytes && utf8.ValidString(v) && !strings.ContainsFunc(v, unicode.IsControl)
+}
+func validID(v string) bool { return validToken(v, 128) }
+func validLine(v string, max int, empty bool) bool {
+	return utf8.ValidString(v) && (empty || strings.TrimSpace(v) != "") && utf8.RuneCountInString(v) <= max && !strings.ContainsFunc(v, unicode.IsControl)
 }
 func validText(v string, max int, empty bool) bool {
 	return utf8.ValidString(v) && (empty || strings.TrimSpace(v) != "") && utf8.RuneCountInString(v) <= max && !strings.ContainsFunc(v, func(r rune) bool { return unicode.IsControl(r) && r != '\n' && r != '\t' })
@@ -111,6 +118,31 @@ func (s *Service) RetryAfterSeconds() int {
 	}
 	return sec
 }
+func intersection(a, b []string) []string {
+	out := []string{}
+	for _, x := range a {
+		if slices.Contains(b, x) && !slices.Contains(out, x) {
+			out = append(out, x)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+func union(a, b []string) []string {
+	out := []string{}
+	for _, x := range a {
+		if !slices.Contains(out, x) {
+			out = append(out, x)
+		}
+	}
+	for _, x := range b {
+		if !slices.Contains(out, x) {
+			out = append(out, x)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
 func (s *Service) activeOwner(t Transaction, owner string) error {
 	if !validOwner(owner) {
 		return ErrUnauthenticated
@@ -124,9 +156,17 @@ func (s *Service) activeOwner(t Transaction, owner string) error {
 	}
 	return nil
 }
-func replay[T any](t Transaction, actor, key, op string, in any, run func() (T, error)) (T, error) {
+
+type auditSpec struct {
+	actor  string
+	action string
+	target string
+	reason string
+}
+
+func replay[T any](t Transaction, scope, key, op string, in any, at time.Time, run func() (T, auditSpec, error)) (T, error) {
 	var out T
-	if key == "" || len(key) > 128 || strings.ContainsFunc(key, unicode.IsControl) {
+	if !validToken(key, 128) {
 		return out, ErrInput
 	}
 	b, e := json.Marshal(struct {
@@ -137,7 +177,7 @@ func replay[T any](t Transaction, actor, key, op string, in any, run func() (T, 
 		return out, ErrInput
 	}
 	digest := hash(string(b))
-	old, body, e := t.Replay(actor, key)
+	old, body, e := t.Replay(scope, key)
 	if e == nil {
 		if old != digest {
 			return out, WithReason(ErrConflict, "idempotency_conflict")
@@ -150,7 +190,8 @@ func replay[T any](t Transaction, actor, key, op string, in any, run func() (T, 
 	if !errors.Is(e, ErrNotFound) {
 		return out, e
 	}
-	out, e = run()
+	var ev auditSpec
+	out, ev, e = run()
 	if e != nil {
 		return out, e
 	}
@@ -158,10 +199,18 @@ func replay[T any](t Transaction, actor, key, op string, in any, run func() (T, 
 	if e != nil {
 		return out, ErrUnavailable
 	}
-	if e = t.SaveReplay(actor, key, digest, body); e != nil {
+	if e = t.SaveReplay(scope, key, digest, body, at); e != nil {
 		return out, e
 	}
-	return out, t.Event(actor, op, "", key)
+	actor := ev.actor
+	if actor == "" {
+		actor = scope
+	}
+	action := ev.action
+	if action == "" {
+		action = op
+	}
+	return out, t.Event(actor, action, ev.target, key, ev.reason, at)
 }
 func page[T any](items []T, limit int, id func(T) string) Page[T] {
 	out := Page[T]{Items: items}
@@ -175,7 +224,7 @@ func pagination(after string, limit int) (int, error) {
 	if limit == 0 {
 		limit = 50
 	}
-	if limit < 1 || limit > 100 || len(after) > 128 || strings.ContainsFunc(after, unicode.IsControl) {
+	if limit < 1 || limit > 100 || (after != "" && !validToken(after, 128)) {
 		return 0, ErrInput
 	}
 	return limit, nil
@@ -192,14 +241,24 @@ func policyValid(p Policy) bool {
 func validateApp(in *ApplicationInput) error {
 	in.Name = strings.TrimSpace(in.Name)
 	in.Purpose = strings.TrimSpace(in.Purpose)
-	if !validText(in.Name, 80, false) || !validText(in.Purpose, 1000, false) || len(in.RedirectURIs) < 1 || len(in.RedirectURIs) > 10 || (in.ClientType != "public" && in.ClientType != "confidential") {
+	if !validLine(in.Name, 80, false) || !validText(in.Purpose, 1000, false) || len(in.RedirectURIs) < 1 || len(in.RedirectURIs) > 10 || (in.ClientType != "public" && in.ClientType != "confidential") {
 		return ErrInput
 	}
+	reserved := []string{"code", "state", "iss", "error"}
 	seen := map[string]bool{}
 	for _, raw := range in.RedirectURIs {
 		u, e := url.Parse(raw)
-		if e != nil || len(raw) > 2048 || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" || seen[raw] || strings.ContainsAny(raw, "\r\n\t") {
+		if e != nil || !validToken(raw, 2048) || strings.ContainsFunc(raw, unicode.IsSpace) || strings.Contains(raw, "#") || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" || seen[raw] {
 			return ErrInput
+		}
+		q, qe := url.ParseQuery(u.RawQuery)
+		if qe != nil {
+			return ErrInput
+		}
+		for _, k := range reserved {
+			if q.Has(k) {
+				return ErrInput
+			}
 		}
 		seen[raw] = true
 	}
@@ -208,10 +267,16 @@ func validateApp(in *ApplicationInput) error {
 	return e
 }
 func (s *Service) transaction(ctx context.Context, owner, app string, run func(Transaction) error) error {
+	return s.runTransaction(ctx, owner, app, true, run)
+}
+func (s *Service) sharedTransaction(ctx context.Context, owner, app string, run func(Transaction) error) error {
+	return s.runTransaction(ctx, owner, app, false, run)
+}
+func (s *Service) runTransaction(ctx context.Context, owner, app string, exclusiveApp bool, run func(Transaction) error) error {
 	if e := s.ready(); e != nil {
 		return e
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	return s.Repo.Transaction(ctx, owner, app, run)
+	return s.Repo.Transaction(ctx, owner, app, exclusiveApp, run)
 }

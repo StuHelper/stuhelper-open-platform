@@ -81,6 +81,41 @@ type Application struct {
 type AppRecord struct {
 	View              Application
 	Owner, SecretHash string
+	UpdatedAt         time.Time
+	TerminatedAt      *time.Time
+	ReviewedBy        string
+	ReviewedAt        *time.Time
+}
+type AdminApplication struct {
+	ID                 string     `json:"id"`
+	Owner              string     `json:"owner"`
+	Name               string     `json:"name"`
+	Purpose            string     `json:"purpose"`
+	RedirectURIs       []string   `json:"redirect_uris"`
+	RequestedScopes    []string   `json:"requested_scopes"`
+	ApprovedScopes     []string   `json:"approved_scopes"`
+	ClientType         string     `json:"client_type"`
+	State              string     `json:"state"`
+	Note               string     `json:"note"`
+	Revision           int64      `json:"revision"`
+	CredentialRevision int64      `json:"credential_revision"`
+	Policy             Policy     `json:"policy"`
+	ActiveGrants       int        `json:"active_grants"`
+	ReviewedBy         string     `json:"reviewed_by,omitempty"`
+	ReviewedAt         *time.Time `json:"reviewed_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+type AdminAppFilter struct {
+	State string
+	Owner string
+	After string
+	Limit int
+}
+type AppCursor struct {
+	Set       bool
+	UpdatedAt time.Time
+	ID        string
 }
 type ReviewInput struct {
 	Revision       int64    `json:"revision"`
@@ -103,17 +138,27 @@ type ConsentInput struct {
 	Challenge   string   `json:"code_challenge"`
 	Method      string   `json:"code_challenge_method"`
 }
+type ConsentApplication struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Purpose      string `json:"purpose"`
+	ClientType   string `json:"client_type"`
+	GrantSeconds int    `json:"grant_seconds"`
+}
 type Consent struct {
-	QQTiers     []string    `json:"qq_tiers"`
-	ID          string      `json:"id"`
-	Application Application `json:"application"`
-	Scopes      []string    `json:"requested_scopes"`
-	RedirectURI string      `json:"redirect_uri"`
-	ExpiresAt   time.Time   `json:"expires_at"`
+	QQTiers              []string           `json:"qq_tiers"`
+	ID                   string             `json:"id"`
+	Application          ConsentApplication `json:"application"`
+	Scopes               []string           `json:"requested_scopes"`
+	ActiveGrantedScopes  []string           `json:"active_granted_scopes"`
+	ActiveGrantExpiresAt *time.Time         `json:"active_grant_expires_at,omitempty"`
+	RedirectURI          string             `json:"redirect_uri"`
+	ExpiresAt            time.Time          `json:"expires_at"`
 }
 type ConsentRecord struct {
 	View          Consent
 	Owner         string
+	AppRevision   int64
 	Input         ConsentInput
 	Decision      string
 	Selected      []string
@@ -126,6 +171,7 @@ type ConsentRecord struct {
 type ConsentDecision struct {
 	Decision string   `json:"decision"`
 	Scopes   []string `json:"scopes"`
+	Mode     string   `json:"mode,omitempty"`
 }
 type AuthorizationResult struct {
 	RedirectURI string `json:"redirect_uri"`
@@ -144,23 +190,49 @@ type TokenRecord struct {
 	ExpiresAt                  time.Time
 }
 type Grant struct {
-	ID        string    `json:"id"`
-	AppID     string    `json:"app_id"`
-	AppName   string    `json:"app_name"`
-	Subject   string    `json:"subject"`
-	Scopes    []string  `json:"scopes"`
-	State     string    `json:"state"`
-	ExpiresAt time.Time `json:"expires_at"`
-	Revision  int64     `json:"revision"`
+	ID                string     `json:"id"`
+	AppID             string     `json:"app_id"`
+	AppName           string     `json:"app_name"`
+	Subject           string     `json:"subject"`
+	Scopes            []string   `json:"scopes"`
+	State             string     `json:"state"`
+	TerminationReason string     `json:"termination_reason,omitempty"`
+	GrantedAt         time.Time  `json:"granted_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	LastDataReadAt    *time.Time `json:"last_data_read_at,omitempty"`
+	ExpiresAt         time.Time  `json:"expires_at"`
+	Revision          int64      `json:"revision"`
 }
 type GrantRecord struct {
-	View        Grant
-	Owner       string
-	AppRevision int64
+	View         Grant
+	Owner        string
+	AppRevision  int64
+	UpdatedAt    time.Time
+	TerminatedAt *time.Time
+}
+type GrantSummary struct {
+	Record         GrantRecord
+	AppState       string
+	CurrentAppRev  int64
+	OwnerClosed    bool
+	AppOwnerClosed bool
+}
+type GrantCursor struct {
+	Set       bool
+	Rank      int
+	UpdatedAt time.Time
+	ID        string
+}
+type GrantListEntry struct {
+	Record             GrantRecord
+	AppState           string
+	CurrentAppRevision int64
+	OwnerClosed        bool
 }
 type RevokeInput struct {
-	Revision int64    `json:"revision"`
-	Scopes   []string `json:"scopes"`
+	Revision  int64    `json:"revision"`
+	Scopes    []string `json:"scopes,omitempty"`
+	RevokeAll bool     `json:"revoke_all,omitempty"`
 }
 type Notice struct {
 	Sequence        int64      `json:"sequence"`
@@ -258,7 +330,8 @@ type Source interface {
 	Read(context.Context, string, string, Query) (Data, error)
 }
 type Repository interface {
-	Transaction(context.Context, string, string, func(Transaction) error) error
+	Transaction(context.Context, string, string, bool, func(Transaction) error) error
+	LocateApp(context.Context, string) (AppRecord, error)
 	LocateConsent(context.Context, string) (ConsentRecord, error)
 	LocateCode(context.Context, string) (ConsentRecord, error)
 	LocateToken(context.Context, string) (TokenRecord, GrantRecord, error)
@@ -270,24 +343,30 @@ type Transaction interface {
 	CloseOwner(string, string) error
 	App(string) (AppRecord, error)
 	Apps(string, bool, string, int) ([]AppRecord, error)
+	AdminApp(string, time.Time) (AdminApplication, error)
+	AdminApps(string, string, time.Time, AppCursor, int) ([]AdminApplication, error)
 	SaveApp(AppRecord) error
 	CountApps(string) (int, error)
-	SuspendOwnedApps(string) error
+	SuspendOwnedApps(string, time.Time) error
 	Consent(string) (ConsentRecord, error)
 	PendingConsents(string, time.Time) (int, error)
 	SaveConsent(ConsentRecord) error
 	Grant(string) (GrantRecord, error)
 	OwnerGrant(string, string) (GrantRecord, error)
-	Grants(string, string, int) ([]GrantRecord, error)
+	Grants(string, string, int) ([]GrantSummary, error)
+	ListGrants(string, string, time.Time, GrantCursor, int) ([]GrantListEntry, error)
 	SaveGrant(GrantRecord) error
+	TouchGrantRead(string, time.Time) error
 	Token(string) (TokenRecord, error)
 	SaveToken(TokenRecord) error
 	RevokeCodeTokens(string, string) error
 	Quota(string, string, int) error
+	LockAppAck(string) error
 	Notice(string) (Notice, error)
 	Notices(string, string, int) ([]Notice, error)
+	MarkNoticesSeen([]string, time.Time) error
 	SaveNotice(Notice) error
 	Replay(string, string) (string, json.RawMessage, error)
-	SaveReplay(string, string, string, json.RawMessage) error
-	Event(string, string, string, string) error
+	SaveReplay(string, string, string, json.RawMessage, time.Time) error
+	Event(string, string, string, string, string, time.Time) error
 }

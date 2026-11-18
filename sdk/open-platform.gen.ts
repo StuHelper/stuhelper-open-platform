@@ -28,7 +28,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。 */
         get: operations["listApplications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-platform/admin/apps/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。 */
+        get: operations["getAdminApplication"];
         put?: never;
         post?: never;
         delete?: never;
@@ -178,6 +196,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。 */
         get: operations["listOwnGrants"];
         put?: never;
         post?: never;
@@ -196,7 +215,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。 */
+        /** @description 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。 */
         post: operations["revokeScopes"];
         delete?: never;
         options?: never;
@@ -339,18 +358,31 @@ export interface components {
         };
         Consent: {
             id: string;
-            application: components["schemas"]["Application"];
+            application: components["schemas"]["ConsentApplication"];
             requested_scopes: components["schemas"]["Scope"][];
             redirect_uri: string;
             /** Format: date-time */
             expires_at: string;
             /** @description Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested. */
             qq_tiers: ("binding_status" | "binding_status_and_number")[];
+            /** @description 当前用户对该应用仍处于有效期的已授权范围；无有效授权时为空数组。 */
+            active_granted_scopes: components["schemas"]["Scope"][];
+            /**
+             * Format: date-time
+             * @description 当前有效授权的到期时间；无有效授权时省略。
+             */
+            active_grant_expires_at?: string;
         };
         ConsentDecision: {
             /** @enum {string} */
             decision: "approve" | "deny";
             scopes: components["schemas"]["Scope"][];
+            /**
+             * @description 同意时的范围合并方式：merge 保留当前仍有效且获批的既有范围并与本次勾选范围求并集；replace 仅保留本次勾选范围并对移除范围生成停止使用通知。
+             * @default merge
+             * @enum {string}
+             */
+            mode: "merge" | "replace";
         };
         AuthorizationResult: {
             redirect_uri: string;
@@ -384,11 +416,27 @@ export interface components {
             expires_at: string;
             /** Format: int64 */
             revision: number;
+            /**
+             * @description 授权已失效时的终止原因；当前有效授权省略该字段。
+             * @enum {string}
+             */
+            termination_reason?: "user_revoked" | "expired" | "application_changed" | "account_closed";
+            /** Format: date-time */
+            granted_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /**
+             * Format: date-time
+             * @description 最近一次向该应用返回业务数据的时间；尚未读取时省略。
+             */
+            last_data_read_at?: string;
         };
         RevokeInput: {
             /** Format: int64 */
             revision: number;
-            scopes: components["schemas"]["Scope"][];
+            scopes?: components["schemas"]["Scope"][];
+            /** @description 为 true 时直接撤回整单当前活跃授权，无需传入 scopes。 */
+            revoke_all?: boolean;
         };
         Notice: {
             id: string;
@@ -416,6 +464,42 @@ export interface components {
         };
         Applications: {
             items: components["schemas"]["Application"][];
+            next?: string;
+        };
+        AdminApplication: {
+            id: string;
+            owner: string;
+            name: string;
+            purpose: string;
+            redirect_uris: string[];
+            requested_scopes: components["schemas"]["Scope"][];
+            approved_scopes: components["schemas"]["Scope"][];
+            /** @enum {string} */
+            client_type: "public" | "confidential";
+            /** @enum {string} */
+            state: "pending" | "changes_requested" | "active" | "suspended";
+            note: string;
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            credential_revision: number;
+            policy: components["schemas"]["Policy"];
+            /** @description 当前仍处于有效期的用户授权数量。 */
+            active_grants: number;
+            /** @description 最近一次执行审批或停用操作的管理员账号标识。 */
+            reviewed_by?: string;
+            /**
+             * Format: date-time
+             * @description 最近一次执行审批或停用操作的时间。
+             */
+            reviewed_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AdminApplications: {
+            items: components["schemas"]["AdminApplication"][];
             next?: string;
         };
         Grants: {
@@ -499,6 +583,15 @@ export interface components {
             id: string;
             time_text: string;
             location: string;
+        };
+        /** @description 面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。 */
+        ConsentApplication: {
+            id: string;
+            name: string;
+            purpose: string;
+            /** @enum {string} */
+            client_type: "public" | "confidential";
+            grant_seconds: number;
         };
     };
     responses: never;
@@ -691,6 +784,10 @@ export interface operations {
     listApplications: {
         parameters: {
             query?: {
+                /** @description 按应用审批状态筛选。 */
+                state?: "pending" | "changes_requested" | "active" | "suspended";
+                /** @description 按开发者账号标识精确筛选。 */
+                owner?: string;
                 after?: string;
                 limit?: number;
             };
@@ -706,7 +803,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Applications"];
+                    "application/json": components["schemas"]["AdminApplications"];
                 };
             };
             /** @description 输入无效 */
@@ -759,6 +856,91 @@ export interface operations {
                 headers: {
                     /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 依赖不可用 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminApplication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminApplication"];
+                };
+            };
+            /** @description 输入无效 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 身份或令牌无效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 权限不足 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 对象不存在或不属于本人 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 修订或幂等冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 调用配额用尽 */
+            429: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
@@ -1503,6 +1685,8 @@ export interface operations {
     listOwnGrants: {
         parameters: {
             query?: {
+                /** @description 按当前有效状态筛选授权列表。 */
+                state?: "active" | "revoked";
                 after?: string;
                 limit?: number;
             };

@@ -26,22 +26,42 @@ capability_requires: {}
 scenario_tests:
   AUDIT-01:
     - postgres/audit_query_test.go#TestPublicAuditQuery
+    - audit_integrity_test.go#TestEmptyCleanupPreservesAuditSnapshotAndMutationsRecordTargetsReasonsAndControlledClock
   OP-01:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
-  OP-11:
-    - repair_test.go#TestQQTiersRequireIndependentApprovalConsentAndTrustedSource
-    - projection_test.go#TestQQProjectionNeverLeaksNumberForStatus
+    - admin_apps_test.go#TestAdminApplicationFilteringOrderingAndDetailStats
   OP-02:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
+    - consent_grants_test.go#TestLegacyConsentKeepsDisplayedApprovalRevision
+    - consent_grants_test.go#TestConsentSummaryComparisonAndIncrementalMergeMode
+    - projection_test.go#TestAllScopesProjectionsNormalizeNilSlicesFilterInactiveScheduleAndValidateBounds
+    - timeouts_and_guards_test.go#TestOutOfTxTimeoutsNilSourceQuotaErrorWhitelistRedirectParamsAndExchangeClientOracle
   OP-03:
     - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
-    - problem_reasons_test.go#TestProblemReasonSubcodesAndQuotaRetryAfterHeader
-  OP-05:
+    - lifecycle_transitions_test.go#TestRevokeAndReconsentStateMachineSuspendedResubmitAckMonotonicityAndTerminationTimestamps
+    - locking_performance_test.go#TestNoticesPreventUnauthenticatedAppEnumerationAvoidLockContentionAndEliminateNPlusOneAndFullScan
+    - consent_grants_test.go#TestGrantsLifecycleMetadataFilteringOrderingAndWholeRevoke
     - problem_reasons_test.go#TestProblemReasonSubcodesAndQuotaRetryAfterHeader
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
+    - token_protocol_test.go#TestTokenEndpointAcceptsBrowserFormMediaTypeAndMapsTransientErrorsTo503
+    - input_validation_test.go#TestMalformedUTF8NullBytesSingleLineFieldsClosureKeyAndAuditSnapshotValidation
+  OP-05:
+    - problem_reasons_test.go#TestProblemReasonSubcodesAndQuotaRetryAfterHeader
+    - contract_projection_test.go#TestOpenAPIConstraintsUnexpectedQueryRejectionAndOP05ContentAdmission
+  OP-06:
+    - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
+  OP-07:
+    - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
+  OP-08:
+    - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
+  OP-09:
+    - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
   OP-10:
     - repair_test.go#TestCodeReplayRevokesIssuedTokenAndProfileIdentifiersArePairwise
+  OP-11:
+    - repair_test.go#TestQQTiersRequireIndependentApprovalConsentAndTrustedSource
+    - projection_test.go#TestQQProjectionNeverLeaksNumberForStatus
   RET-05:
     - repair_test.go#TestCleanupIsBoundedPreservesLiveDataAndRollsBackFailures
