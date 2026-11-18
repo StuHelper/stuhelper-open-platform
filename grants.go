@@ -43,6 +43,9 @@ func (s *Service) notice(t Transaction, g GrantRecord, scopes []string, reason s
 }
 func (s *Service) Grants(ctx context.Context, p Principal, after string, limit int) (Page[Grant], error) {
 	var out Page[Grant]
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
 	limit, e := pagination(after, limit)
 	if e != nil {
 		return out, e
@@ -86,7 +89,7 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 	}
 	var e error
 	in.Scopes, e = validateScopes(in.Scopes, false)
-	if e != nil || in.Revision < 1 {
+	if e != nil || !validID(id) || in.Revision < 1 {
 		return out, ErrInput
 	}
 	located, e := s.Repo.LocateGrant(ctx, id)
@@ -150,11 +153,11 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 // CloseAccount installs a permanent grant-owner fence and application epochs in the same transaction.
 // It is a trusted module port; there is no HTTP route that accepts another account key.
 func (s *Service) CloseAccount(ctx context.Context, owner, closureID string) error {
-	if !validOwner(owner) || !validText(closureID, 128, false) {
+	if !validOwner(owner) || !validLine(closureID, 128, false) {
 		return ErrInput
 	}
 	return s.transaction(ctx, owner, "", func(t Transaction) error {
-		_, e := replay(t, owner, "closure:"+closureID, "close-account", closureID, func() (bool, error) {
+		_, e := replay(t, owner, "closure:"+hash(closureID), "close-account", closureID, func() (bool, error) {
 			if e := t.CloseOwner(owner, closureID); e != nil {
 				return false, e
 			}
@@ -222,6 +225,12 @@ func (s *Service) Work(ctx context.Context, limit int) (int, error) {
 }
 func (s *Service) Notices(ctx context.Context, p Principal, app, secret, after string, limit int) (Page[Notice], error) {
 	var out Page[Notice]
+	if !validID(app) {
+		return out, ErrInput
+	}
+	if secret != "" && !validToken(secret, 256) {
+		return out, ErrUnauthenticated
+	}
 	if after != "" {
 		n, e := strconv.ParseInt(after, 10, 64)
 		if e != nil || n < 1 {
@@ -270,8 +279,11 @@ func ackRank(status string) int {
 
 func (s *Service) Acknowledge(ctx context.Context, p Principal, app, secret, id, key string, in Acknowledgement) (Notice, error) {
 	var out Notice
-	if !slices.Contains([]string{"received", "deleted", "retention_exception"}, in.Status) || !validText(in.Note, 1000, in.Status != "retention_exception") {
+	if !validID(app) || !validID(id) || !slices.Contains([]string{"received", "deleted", "retention_exception"}, in.Status) || !validText(in.Note, 1000, in.Status != "retention_exception") {
 		return out, ErrInput
+	}
+	if secret != "" && !validToken(secret, 256) {
+		return out, ErrUnauthenticated
 	}
 	e := s.transaction(ctx, p.Owner, app, func(t Transaction) error {
 		if _, e := authenticatedApp(t, p, app, secret); e != nil {

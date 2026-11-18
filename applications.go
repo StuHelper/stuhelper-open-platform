@@ -7,6 +7,9 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 	if !validOwner(p.Owner) {
 		return out, ErrUnauthenticated
 	}
+	if id != "" && !validID(id) {
+		return out, ErrInput
+	}
 	if e := validateApp(&in); e != nil {
 		return out, e
 	}
@@ -68,6 +71,12 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 }
 func (s *Service) Application(ctx context.Context, p Principal, id string) (Application, error) {
 	var out Application
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !validID(id) {
+		return out, ErrInput
+	}
 	e := s.transaction(ctx, p.Owner, id, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
@@ -121,7 +130,7 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 	if !p.Admin {
 		return out, ErrForbidden
 	}
-	if in.Revision < 1 || !validText(in.Note, 1000, true) || (in.Decision != "approve" && in.Decision != "changes_requested" && in.Decision != "suspend") {
+	if !validID(id) || in.Revision < 1 || !validText(in.Note, 1000, true) || (in.Decision != "approve" && in.Decision != "changes_requested" && in.Decision != "suspend") {
 		return out, ErrInput
 	}
 	var e error
@@ -182,7 +191,7 @@ func (s *Service) RotateCredential(ctx context.Context, p Principal, id, key str
 	if !validOwner(p.Owner) {
 		return out, ErrUnauthenticated
 	}
-	if revision < 0 {
+	if !validID(id) || revision < 0 {
 		return out, ErrInput
 	}
 	var secret string
