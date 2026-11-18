@@ -7,6 +7,9 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 	if !validOwner(p.Owner) {
 		return out, ErrUnauthenticated
 	}
+	if id != "" && !validID(id) {
+		return out, ErrInput
+	}
 	if e := validateApp(&in); e != nil {
 		return out, e
 	}
@@ -16,6 +19,7 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 		}
 		var e error
 		out, e = replay(t, p.Owner, key, "application:"+id, in, s.now(), func() (Application, auditSpec, error) {
+			now := s.now()
 			var a AppRecord
 			if id == "" {
 				n, e := t.CountApps(p.Owner)
@@ -29,7 +33,7 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 				if e != nil {
 					return out, auditSpec{}, e
 				}
-				a = AppRecord{Owner: p.Owner, View: Application{ID: id, Revision: 1, CreatedAt: s.now(), ApprovedScopes: []string{}}}
+				a = AppRecord{Owner: p.Owner, UpdatedAt: now, View: Application{ID: id, Revision: 1, CreatedAt: now, ApprovedScopes: []string{}}}
 			} else {
 				var e error
 				a, e = t.App(id)
@@ -39,13 +43,16 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 				if a.Owner != p.Owner {
 					return out, auditSpec{}, ErrNotFound
 				}
-				if a.View.State == "active" || a.View.Revision != in.Revision {
+				if a.View.State == "active" || a.View.State == "suspended" || a.View.Revision != in.Revision {
 					return out, auditSpec{}, ErrConflict
 				}
 				a.View.Revision++
 				a.View.ApprovedScopes = []string{}
-				a.View.Note = ""
 				a.View.Policy = Policy{}
+				a.UpdatedAt = now
+			}
+			if in.ClientType == "public" {
+				a.SecretHash = ""
 			}
 			a.View.Name = in.Name
 			a.View.Purpose = in.Purpose
@@ -64,6 +71,12 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 }
 func (s *Service) Application(ctx context.Context, p Principal, id string) (Application, error) {
 	var out Application
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !validID(id) {
+		return out, ErrInput
+	}
 	e := s.transaction(ctx, p.Owner, id, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
@@ -117,7 +130,7 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 	if !p.Admin {
 		return out, ErrForbidden
 	}
-	if in.Revision < 1 || !validText(in.Note, 1000, true) || (in.Decision != "approve" && in.Decision != "changes_requested" && in.Decision != "suspend") {
+	if !validID(id) || in.Revision < 1 || !validText(in.Note, 1000, true) || (in.Decision != "approve" && in.Decision != "changes_requested" && in.Decision != "suspend") {
 		return out, ErrInput
 	}
 	var e error
@@ -147,15 +160,20 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 			if !subset(in.ApprovedScopes, a.View.RequestedScopes) {
 				return out, auditSpec{}, ErrInput
 			}
+			now := s.now()
+			a.UpdatedAt = now
 			switch in.Decision {
 			case "approve":
 				a.View.State = "active"
 				a.View.ApprovedScopes = in.ApprovedScopes
 				a.View.Policy = in.Policy
+				a.TerminatedAt = nil
 			case "changes_requested":
 				a.View.State = "changes_requested"
+				a.TerminatedAt = nil
 			case "suspend":
 				a.View.State = "suspended"
+				a.TerminatedAt = &now
 			}
 			a.View.Revision++
 			a.View.Note = in.Note
@@ -173,7 +191,7 @@ func (s *Service) RotateCredential(ctx context.Context, p Principal, id, key str
 	if !validOwner(p.Owner) {
 		return out, ErrUnauthenticated
 	}
-	if revision < 0 {
+	if !validID(id) || revision < 0 {
 		return out, ErrInput
 	}
 	var secret string
@@ -189,7 +207,7 @@ func (s *Service) RotateCredential(ctx context.Context, p Principal, id, key str
 			return ErrNotFound
 		}
 		out, e = replay(t, p.Owner, key, "credential:"+id, revision, s.now(), func() (Credential, auditSpec, error) {
-			if a.View.CredentialRevision != revision {
+			if a.View.ClientType != "confidential" || a.View.CredentialRevision != revision {
 				return out, auditSpec{}, ErrConflict
 			}
 			v, e := s.random()
@@ -199,6 +217,7 @@ func (s *Service) RotateCredential(ctx context.Context, p Principal, id, key str
 			secret = "opsecret_" + v
 			a.SecretHash = hash(secret)
 			a.View.CredentialRevision++
+			a.UpdatedAt = s.now()
 			if e = t.SaveApp(a); e != nil {
 				return out, auditSpec{}, e
 			}

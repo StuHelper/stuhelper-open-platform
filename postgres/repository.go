@@ -124,9 +124,14 @@ func (t *transaction) CloseOwner(owner, id string) error {
 func (t *transaction) App(id string) (op.AppRecord, error) {
 	var out op.AppRecord
 	var raw []byte
-	e := t.tx.QueryRowContext(t.ctx, `SELECT owner_key,secret_hash,document FROM open_platform.apps WHERE id=$1`, id).Scan(&out.Owner, &out.SecretHash, &raw)
+	var terminated sql.NullTime
+	e := t.tx.QueryRowContext(t.ctx, `SELECT owner_key,secret_hash,document,updated_at,terminated_at FROM open_platform.apps WHERE id=$1`, id).Scan(&out.Owner, &out.SecretHash, &raw, &out.UpdatedAt, &terminated)
 	if e != nil {
 		return out, safe(e)
+	}
+	if terminated.Valid {
+		ts := terminated.Time.UTC()
+		out.TerminatedAt = &ts
 	}
 	if json.Unmarshal(raw, &out.View) != nil {
 		return out, op.ErrUnavailable
@@ -134,7 +139,7 @@ func (t *transaction) App(id string) (op.AppRecord, error) {
 	return out, nil
 }
 func (t *transaction) Apps(owner string, admin bool, after string, limit int) ([]op.AppRecord, error) {
-	rows, e := t.tx.QueryContext(t.ctx, `SELECT owner_key,secret_hash,document FROM open_platform.apps WHERE ($2 OR owner_key=$1) AND id>$3 ORDER BY id LIMIT $4`, owner, admin, after, limit)
+	rows, e := t.tx.QueryContext(t.ctx, `SELECT owner_key,secret_hash,document,updated_at,terminated_at FROM open_platform.apps WHERE ($2 OR owner_key=$1) AND id>$3 ORDER BY id LIMIT $4`, owner, admin, after, limit)
 	if e != nil {
 		return nil, safe(e)
 	}
@@ -143,8 +148,13 @@ func (t *transaction) Apps(owner string, admin bool, after string, limit int) ([
 	for rows.Next() {
 		var a op.AppRecord
 		var b []byte
-		if e = rows.Scan(&a.Owner, &a.SecretHash, &b); e != nil {
+		var terminated sql.NullTime
+		if e = rows.Scan(&a.Owner, &a.SecretHash, &b, &a.UpdatedAt, &terminated); e != nil {
 			return nil, safe(e)
+		}
+		if terminated.Valid {
+			ts := terminated.Time.UTC()
+			a.TerminatedAt = &ts
 		}
 		if json.Unmarshal(b, &a.View) != nil {
 			return nil, op.ErrUnavailable
@@ -158,7 +168,11 @@ func (t *transaction) SaveApp(a op.AppRecord) error {
 	if e != nil {
 		return op.ErrUnavailable
 	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,document=EXCLUDED.document`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, raw)
+	updatedAt := a.UpdatedAt
+	if updatedAt.IsZero() {
+		updatedAt = a.View.CreatedAt
+	}
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps(id,owner_key,state,revision,secret_hash,document,updated_at,terminated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,document=EXCLUDED.document,updated_at=EXCLUDED.updated_at,terminated_at=EXCLUDED.terminated_at`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, raw, updatedAt, a.TerminatedAt)
 	return safe(e)
 }
 func (t *transaction) CountApps(owner string) (int, error) {
@@ -166,7 +180,7 @@ func (t *transaction) CountApps(owner string) (int, error) {
 	e := t.tx.QueryRowContext(t.ctx, `SELECT count(*) FROM open_platform.apps WHERE owner_key=$1`, owner).Scan(&n)
 	return n, safe(e)
 }
-func (t *transaction) SuspendOwnedApps(owner string) error {
+func (t *transaction) SuspendOwnedApps(owner string, at time.Time) error {
 	// Application creation is bounded at 100 per owner. Row locks serialize the epoch bump with administrator decisions.
 	rows, e := t.Apps(owner, false, "", 101)
 	if e != nil {
@@ -183,9 +197,12 @@ func (t *transaction) SuspendOwnedApps(owner string) error {
 		if e != nil {
 			return e
 		}
+		ts := at.UTC()
 		a.View.State = "suspended"
 		a.View.Revision++
 		a.View.Note = "owner_account_closed"
+		a.UpdatedAt = ts
+		a.TerminatedAt = &ts
 		if e = t.SaveApp(a); e != nil {
 			return e
 		}
@@ -239,7 +256,11 @@ func (t *transaction) SaveGrant(g op.GrantRecord) error {
 	if e != nil {
 		return op.ErrUnavailable
 	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.grants VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO UPDATE SET app_revision=EXCLUDED.app_revision,state=EXCLUDED.state,expires_at=EXCLUDED.expires_at,document=EXCLUDED.document`, g.View.ID, g.View.AppID, g.Owner, g.AppRevision, g.View.State, g.View.ExpiresAt, raw)
+	updatedAt := g.UpdatedAt
+	if updatedAt.IsZero() {
+		updatedAt = g.View.ExpiresAt
+	}
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.grants(id,app_id,owner_key,app_revision,state,expires_at,document,updated_at,terminated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(id) DO UPDATE SET app_revision=EXCLUDED.app_revision,state=EXCLUDED.state,expires_at=EXCLUDED.expires_at,document=EXCLUDED.document,updated_at=EXCLUDED.updated_at,terminated_at=EXCLUDED.terminated_at`, g.View.ID, g.View.AppID, g.Owner, g.AppRevision, g.View.State, g.View.ExpiresAt, raw, updatedAt, g.TerminatedAt)
 	return safe(e)
 }
 func (t *transaction) Token(h string) (op.TokenRecord, error) {

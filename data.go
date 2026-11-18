@@ -52,15 +52,15 @@ func (s *Service) Read(ctx context.Context, token, scope string, q Query) (Data,
 	if !slices.Contains(Scopes, scope) || q.Limit < 0 || q.Limit > 100 {
 		return out, ErrInput
 	}
-	if !strings.HasPrefix(token, "op_") || len(token) > 100 {
+	if !strings.HasPrefix(token, "op_") || !validToken(token, 100) {
 		return out, ErrUnauthenticated
 	}
 	for _, v := range []string{q.ID, q.Kind, q.Query, q.TermID, q.TargetID} {
-		if !validText(v, 500, true) {
+		if !validLine(v, 500, true) {
 			return out, ErrInput
 		}
 	}
-	if len(q.After) > 2048 {
+	if q.After != "" && !validToken(q.After, 2048) {
 		return out, ErrInput
 	}
 	if q.Limit == 0 {
@@ -151,7 +151,7 @@ func project(scope string, v Data) (Data, error) {
 		}
 		out.QQBinding = &b
 	case "profile":
-		if v.Profile == nil || !validText(v.Profile.Nickname, 20, true) || !validText(v.Profile.Bio, 120, true) {
+		if v.Profile == nil || !validLine(v.Profile.Nickname, 20, true) || !validText(v.Profile.Bio, 120, true) {
 			return out, ErrUnavailable
 		}
 		out.Profile = v.Profile

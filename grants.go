@@ -43,6 +43,9 @@ func (s *Service) notice(t Transaction, g GrantRecord, scopes []string, reason s
 }
 func (s *Service) Grants(ctx context.Context, p Principal, after string, limit int) (Page[Grant], error) {
 	var out Page[Grant]
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
 	limit, e := pagination(after, limit)
 	if e != nil {
 		return out, e
@@ -67,6 +70,7 @@ func (s *Service) Grants(ctx context.Context, p Principal, after string, limit i
 			}
 			if reason != "" {
 				g.View.State = "revoked"
+				g.View.Scopes = []string{}
 			}
 			items = append(items, g.View)
 		}
@@ -85,7 +89,7 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 	}
 	var e error
 	in.Scopes, e = validateScopes(in.Scopes, false)
-	if e != nil || in.Revision < 1 {
+	if e != nil || !validID(id) || in.Revision < 1 {
 		return out, ErrInput
 	}
 	located, e := s.Repo.LocateGrant(ctx, id)
@@ -105,21 +109,43 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 			if e != nil {
 				return out, auditSpec{}, e
 			}
-			if g.View.Revision != in.Revision || !subset(in.Scopes, g.View.Scopes) {
+			if g.View.State != "active" || g.View.Revision != in.Revision || !subset(in.Scopes, g.View.Scopes) {
 				return out, auditSpec{}, ErrConflict
 			}
-			if e = s.notice(t, g, in.Scopes, "user_revoked"); e != nil {
+			a, e := t.App(g.View.AppID)
+			if e != nil {
 				return out, auditSpec{}, e
 			}
-			g.View.Scopes = difference(g.View.Scopes, in.Scopes)
-			if len(g.View.Scopes) == 0 {
+			reason, e := s.grantReason(t, g, a)
+			if e != nil {
+				return out, auditSpec{}, e
+			}
+			now := s.now()
+			g.UpdatedAt = now
+			terminationReason := "user_revoked"
+			if reason != "" {
+				terminationReason = reason
+				if e = s.notice(t, g, g.View.Scopes, reason); e != nil {
+					return out, auditSpec{}, e
+				}
+				g.View.Scopes = []string{}
 				g.View.State = "revoked"
+				g.TerminatedAt = &now
+			} else {
+				if e = s.notice(t, g, in.Scopes, "user_revoked"); e != nil {
+					return out, auditSpec{}, e
+				}
+				g.View.Scopes = difference(g.View.Scopes, in.Scopes)
+				if len(g.View.Scopes) == 0 {
+					g.View.State = "revoked"
+					g.TerminatedAt = &now
+				}
 			}
 			g.View.Revision++
 			if e = t.SaveGrant(g); e != nil {
 				return out, auditSpec{}, e
 			}
-			return g.View, auditSpec{actor: p.Owner, action: "grant_revoked", target: id, reason: "user_revoked"}, nil
+			return g.View, auditSpec{actor: p.Owner, action: "grant_revoked", target: id, reason: terminationReason}, nil
 		})
 		return e
 	})
@@ -129,15 +155,15 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 // CloseAccount installs a permanent grant-owner fence and application epochs in the same transaction.
 // It is a trusted module port; there is no HTTP route that accepts another account key.
 func (s *Service) CloseAccount(ctx context.Context, owner, closureID string) error {
-	if !validOwner(owner) || !validText(closureID, 128, false) {
+	if !validOwner(owner) || !validLine(closureID, 128, false) {
 		return ErrInput
 	}
 	return s.transaction(ctx, owner, "", func(t Transaction) error {
-		_, e := replay(t, owner, "closure:"+closureID, "close-account", closureID, s.now(), func() (bool, auditSpec, error) {
+		_, e := replay(t, owner, "closure:"+hash(closureID), "close-account", closureID, s.now(), func() (bool, auditSpec, error) {
 			if e := t.CloseOwner(owner, closureID); e != nil {
 				return false, auditSpec{}, e
 			}
-			if e := t.SuspendOwnedApps(owner); e != nil {
+			if e := t.SuspendOwnedApps(owner, s.now()); e != nil {
 				return false, auditSpec{}, e
 			}
 			return true, auditSpec{actor: owner, action: "account_closed", target: owner}, nil
@@ -181,8 +207,12 @@ func (s *Service) Work(ctx context.Context, limit int) (int, error) {
 			if e = s.notice(t, g, g.View.Scopes, reason); e != nil {
 				return e
 			}
+			now := s.now()
+			g.View.Scopes = []string{}
 			g.View.State = "revoked"
 			g.View.Revision++
+			g.UpdatedAt = now
+			g.TerminatedAt = &now
 			if e = t.SaveGrant(g); e != nil {
 				return e
 			}
@@ -197,6 +227,12 @@ func (s *Service) Work(ctx context.Context, limit int) (int, error) {
 }
 func (s *Service) Notices(ctx context.Context, p Principal, app, secret, after string, limit int) (Page[Notice], error) {
 	var out Page[Notice]
+	if !validID(app) {
+		return out, ErrInput
+	}
+	if secret != "" && !validToken(secret, 256) {
+		return out, ErrUnauthenticated
+	}
 	if after != "" {
 		n, e := strconv.ParseInt(after, 10, 64)
 		if e != nil || n < 1 {
@@ -230,10 +266,26 @@ func (s *Service) Notices(ctx context.Context, p Principal, app, secret, after s
 	})
 	return out, e
 }
+func ackRank(status string) int {
+	switch status {
+	case "received":
+		return 1
+	case "retention_exception":
+		return 2
+	case "deleted":
+		return 3
+	default:
+		return 0
+	}
+}
+
 func (s *Service) Acknowledge(ctx context.Context, p Principal, app, secret, id, key string, in Acknowledgement) (Notice, error) {
 	var out Notice
-	if !slices.Contains([]string{"received", "deleted", "retention_exception"}, in.Status) || !validText(in.Note, 1000, in.Status != "retention_exception") {
+	if !validID(app) || !validID(id) || !slices.Contains([]string{"received", "deleted", "retention_exception"}, in.Status) || !validText(in.Note, 1000, in.Status != "retention_exception") {
 		return out, ErrInput
+	}
+	if secret != "" && !validToken(secret, 256) {
+		return out, ErrUnauthenticated
 	}
 	e := s.transaction(ctx, p.Owner, app, func(t Transaction) error {
 		if _, e := authenticatedApp(t, p, app, secret); e != nil {
@@ -252,7 +304,7 @@ func (s *Service) Acknowledge(ctx context.Context, p Principal, app, secret, id,
 			if n.AppID != app {
 				return out, auditSpec{}, ErrNotFound
 			}
-			if n.Acknowledgement == "deleted" && in.Status != "deleted" {
+			if ackRank(in.Status) < ackRank(n.Acknowledgement) {
 				return out, auditSpec{}, ErrConflict
 			}
 			n.Acknowledgement = in.Status

@@ -63,6 +63,13 @@ func (s *Service) code(id string) string {
 	m.Write([]byte("open-platform-code:" + id))
 	return "opc_" + base64.RawURLEncoding.EncodeToString(m.Sum(nil))
 }
+func validToken(v string, maxBytes int) bool {
+	return v != "" && len(v) <= maxBytes && utf8.ValidString(v) && !strings.ContainsFunc(v, unicode.IsControl)
+}
+func validID(v string) bool { return validToken(v, 128) }
+func validLine(v string, max int, empty bool) bool {
+	return utf8.ValidString(v) && (empty || strings.TrimSpace(v) != "") && utf8.RuneCountInString(v) <= max && !strings.ContainsFunc(v, unicode.IsControl)
+}
 func validText(v string, max int, empty bool) bool {
 	return utf8.ValidString(v) && (empty || strings.TrimSpace(v) != "") && utf8.RuneCountInString(v) <= max && !strings.ContainsFunc(v, func(r rune) bool { return unicode.IsControl(r) && r != '\n' && r != '\t' })
 }
@@ -122,7 +129,7 @@ type auditSpec struct {
 
 func replay[T any](t Transaction, scope, key, op string, in any, at time.Time, run func() (T, auditSpec, error)) (T, error) {
 	var out T
-	if key == "" || len(key) > 128 || strings.ContainsFunc(key, unicode.IsControl) {
+	if !validToken(key, 128) {
 		return out, ErrInput
 	}
 	b, e := json.Marshal(struct {
@@ -180,7 +187,7 @@ func pagination(after string, limit int) (int, error) {
 	if limit == 0 {
 		limit = 50
 	}
-	if limit < 1 || limit > 100 || len(after) > 128 || strings.ContainsFunc(after, unicode.IsControl) {
+	if limit < 1 || limit > 100 || (after != "" && !validToken(after, 128)) {
 		return 0, ErrInput
 	}
 	return limit, nil
@@ -197,13 +204,13 @@ func policyValid(p Policy) bool {
 func validateApp(in *ApplicationInput) error {
 	in.Name = strings.TrimSpace(in.Name)
 	in.Purpose = strings.TrimSpace(in.Purpose)
-	if !validText(in.Name, 80, false) || !validText(in.Purpose, 1000, false) || len(in.RedirectURIs) < 1 || len(in.RedirectURIs) > 10 || (in.ClientType != "public" && in.ClientType != "confidential") {
+	if !validLine(in.Name, 80, false) || !validText(in.Purpose, 1000, false) || len(in.RedirectURIs) < 1 || len(in.RedirectURIs) > 10 || (in.ClientType != "public" && in.ClientType != "confidential") {
 		return ErrInput
 	}
 	seen := map[string]bool{}
 	for _, raw := range in.RedirectURIs {
 		u, e := url.Parse(raw)
-		if e != nil || len(raw) > 2048 || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" || seen[raw] || strings.ContainsAny(raw, "\r\n\t") {
+		if e != nil || !validToken(raw, 2048) || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" || seen[raw] {
 			return ErrInput
 		}
 		seen[raw] = true

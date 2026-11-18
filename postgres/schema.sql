@@ -1,12 +1,16 @@
 CREATE SCHEMA IF NOT EXISTS open_platform;
 REVOKE ALL ON SCHEMA open_platform FROM PUBLIC;
 CREATE TABLE IF NOT EXISTS open_platform.owners(owner_key text PRIMARY KEY, closed boolean NOT NULL DEFAULT false, closure_id text NOT NULL DEFAULT '');
-CREATE TABLE IF NOT EXISTS open_platform.apps(id text PRIMARY KEY,owner_key text NOT NULL,state text NOT NULL,revision bigint NOT NULL,secret_hash text NOT NULL,document jsonb NOT NULL);
+CREATE TABLE IF NOT EXISTS open_platform.apps(id text PRIMARY KEY,owner_key text NOT NULL,state text NOT NULL,revision bigint NOT NULL,secret_hash text NOT NULL,document jsonb NOT NULL,updated_at timestamptz NOT NULL DEFAULT now(),terminated_at timestamptz);
+ALTER TABLE open_platform.apps ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS terminated_at timestamptz;
 CREATE INDEX IF NOT EXISTS apps_owner ON open_platform.apps(owner_key,id);
-CREATE TABLE IF NOT EXISTS open_platform.grants(id text PRIMARY KEY,app_id text NOT NULL REFERENCES open_platform.apps(id),owner_key text NOT NULL,app_revision bigint NOT NULL,state text NOT NULL,expires_at timestamptz NOT NULL,document jsonb NOT NULL,UNIQUE(app_id,owner_key));
+CREATE INDEX IF NOT EXISTS apps_terminated ON open_platform.apps(terminated_at,id) WHERE terminated_at IS NOT NULL;
+CREATE TABLE IF NOT EXISTS open_platform.grants(id text PRIMARY KEY,app_id text NOT NULL REFERENCES open_platform.apps(id),owner_key text NOT NULL,app_revision bigint NOT NULL,state text NOT NULL,expires_at timestamptz NOT NULL,document jsonb NOT NULL,updated_at timestamptz NOT NULL DEFAULT now(),terminated_at timestamptz,UNIQUE(app_id,owner_key));
+ALTER TABLE open_platform.grants ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS terminated_at timestamptz;
 CREATE INDEX IF NOT EXISTS grants_owner ON open_platform.grants(owner_key,id);
 CREATE INDEX IF NOT EXISTS grants_expiry ON open_platform.grants(expires_at,id) WHERE state='active';
 CREATE INDEX IF NOT EXISTS grants_app_revision ON open_platform.grants(app_id,app_revision,id) WHERE state='active';
+CREATE INDEX IF NOT EXISTS grants_terminated ON open_platform.grants(terminated_at,id) WHERE terminated_at IS NOT NULL;
 CREATE TABLE IF NOT EXISTS open_platform.consents(id text PRIMARY KEY,owner_key text NOT NULL,app_id text NOT NULL REFERENCES open_platform.apps(id),code_hash text UNIQUE,expires_at timestamptz NOT NULL,document jsonb NOT NULL);
 CREATE TABLE IF NOT EXISTS open_platform.tokens(hash text PRIMARY KEY,grant_id text NOT NULL REFERENCES open_platform.grants(id),expires_at timestamptz NOT NULL,document jsonb NOT NULL);
 CREATE TABLE IF NOT EXISTS open_platform.quotas(app_id text NOT NULL REFERENCES open_platform.apps(id),day text NOT NULL,used integer NOT NULL,PRIMARY KEY(app_id,day));
