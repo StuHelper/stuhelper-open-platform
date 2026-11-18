@@ -196,6 +196,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。 */
         get: operations["listOwnGrants"];
         put?: never;
         post?: never;
@@ -214,7 +215,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。 */
+        /** @description 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。 */
         post: operations["revokeScopes"];
         delete?: never;
         options?: never;
@@ -351,18 +352,31 @@ export interface components {
         };
         Consent: {
             id: string;
-            application: components["schemas"]["Application"];
+            application: components["schemas"]["ConsentApplication"];
             requested_scopes: components["schemas"]["Scope"][];
             redirect_uri: string;
             /** Format: date-time */
             expires_at: string;
             /** @description Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested. */
             qq_tiers: ("binding_status" | "binding_status_and_number")[];
+            /** @description 当前用户对该应用仍处于有效期的已授权范围；无有效授权时为空数组。 */
+            active_granted_scopes: components["schemas"]["Scope"][];
+            /**
+             * Format: date-time
+             * @description 当前有效授权的到期时间；无有效授权时省略。
+             */
+            active_grant_expires_at?: string;
         };
         ConsentDecision: {
             /** @enum {string} */
             decision: "approve" | "deny";
             scopes: components["schemas"]["Scope"][];
+            /**
+             * @description 同意时的范围合并方式：merge 保留当前仍有效且获批的既有范围并与本次勾选范围求并集；replace 仅保留本次勾选范围并对移除范围生成停止使用通知。
+             * @default merge
+             * @enum {string}
+             */
+            mode: "merge" | "replace";
         };
         AuthorizationResult: {
             redirect_uri: string;
@@ -396,11 +410,27 @@ export interface components {
             expires_at: string;
             /** Format: int64 */
             revision: number;
+            /**
+             * @description 授权已失效时的终止原因；当前有效授权省略该字段。
+             * @enum {string}
+             */
+            termination_reason?: "user_revoked" | "expired" | "application_changed" | "account_closed";
+            /** Format: date-time */
+            granted_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /**
+             * Format: date-time
+             * @description 最近一次向该应用返回业务数据的时间；尚未读取时省略。
+             */
+            last_data_read_at?: string;
         };
         RevokeInput: {
             /** Format: int64 */
             revision: number;
-            scopes: components["schemas"]["Scope"][];
+            scopes?: components["schemas"]["Scope"][];
+            /** @description 为 true 时直接撤回整单当前活跃授权，无需传入 scopes。 */
+            revoke_all?: boolean;
         };
         Notice: {
             id: string;
@@ -547,6 +577,15 @@ export interface components {
             id: string;
             time_text: string;
             location: string;
+        };
+        /** @description 面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。 */
+        ConsentApplication: {
+            id: string;
+            name: string;
+            purpose: string;
+            /** @enum {string} */
+            client_type: "public" | "confidential";
+            grant_seconds: number;
         };
     };
     responses: never;
@@ -1620,6 +1659,8 @@ export interface operations {
     listOwnGrants: {
         parameters: {
             query?: {
+                /** @description 按当前有效状态筛选授权列表。 */
+                state?: "active" | "revoked";
                 after?: string;
                 limit?: number;
             };

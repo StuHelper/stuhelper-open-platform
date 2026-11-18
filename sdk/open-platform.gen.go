@@ -158,6 +158,24 @@ func (e ConsentQqTiers) Valid() bool {
 	}
 }
 
+// Defines values for ConsentApplicationClientType.
+const (
+	ConsentApplicationClientTypeConfidential ConsentApplicationClientType = "confidential"
+	ConsentApplicationClientTypePublic       ConsentApplicationClientType = "public"
+)
+
+// Valid indicates whether the value is a known member of the ConsentApplicationClientType enum.
+func (e ConsentApplicationClientType) Valid() bool {
+	switch e {
+	case ConsentApplicationClientTypeConfidential:
+		return true
+	case ConsentApplicationClientTypePublic:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConsentDecisionDecision.
 const (
 	ConsentDecisionDecisionApprove ConsentDecisionDecision = "approve"
@@ -170,6 +188,24 @@ func (e ConsentDecisionDecision) Valid() bool {
 	case ConsentDecisionDecisionApprove:
 		return true
 	case ConsentDecisionDecisionDeny:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConsentDecisionMode.
+const (
+	Merge   ConsentDecisionMode = "merge"
+	Replace ConsentDecisionMode = "replace"
+)
+
+// Valid indicates whether the value is a known member of the ConsentDecisionMode enum.
+func (e ConsentDecisionMode) Valid() bool {
+	switch e {
+	case Merge:
+		return true
+	case Replace:
 		return true
 	default:
 		return false
@@ -209,6 +245,30 @@ func (e GrantState) Valid() bool {
 	}
 }
 
+// Defines values for GrantTerminationReason.
+const (
+	GrantTerminationReasonAccountClosed      GrantTerminationReason = "account_closed"
+	GrantTerminationReasonApplicationChanged GrantTerminationReason = "application_changed"
+	GrantTerminationReasonExpired            GrantTerminationReason = "expired"
+	GrantTerminationReasonUserRevoked        GrantTerminationReason = "user_revoked"
+)
+
+// Valid indicates whether the value is a known member of the GrantTerminationReason enum.
+func (e GrantTerminationReason) Valid() bool {
+	switch e {
+	case GrantTerminationReasonAccountClosed:
+		return true
+	case GrantTerminationReasonApplicationChanged:
+		return true
+	case GrantTerminationReasonExpired:
+		return true
+	case GrantTerminationReasonUserRevoked:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for NoticeAcknowledgement.
 const (
 	NoticeAcknowledgementDeleted            NoticeAcknowledgement = "deleted"
@@ -232,25 +292,25 @@ func (e NoticeAcknowledgement) Valid() bool {
 
 // Defines values for NoticeReason.
 const (
-	AccountClosed      NoticeReason = "account_closed"
-	ApplicationChanged NoticeReason = "application_changed"
-	ConsentChanged     NoticeReason = "consent_changed"
-	Expired            NoticeReason = "expired"
-	UserRevoked        NoticeReason = "user_revoked"
+	NoticeReasonAccountClosed      NoticeReason = "account_closed"
+	NoticeReasonApplicationChanged NoticeReason = "application_changed"
+	NoticeReasonConsentChanged     NoticeReason = "consent_changed"
+	NoticeReasonExpired            NoticeReason = "expired"
+	NoticeReasonUserRevoked        NoticeReason = "user_revoked"
 )
 
 // Valid indicates whether the value is a known member of the NoticeReason enum.
 func (e NoticeReason) Valid() bool {
 	switch e {
-	case AccountClosed:
+	case NoticeReasonAccountClosed:
 		return true
-	case ApplicationChanged:
+	case NoticeReasonApplicationChanged:
 		return true
-	case ConsentChanged:
+	case NoticeReasonConsentChanged:
 		return true
-	case Expired:
+	case NoticeReasonExpired:
 		return true
-	case UserRevoked:
+	case NoticeReasonUserRevoked:
 		return true
 	default:
 		return false
@@ -392,6 +452,24 @@ func (e ListApplicationsParamsState) Valid() bool {
 	}
 }
 
+// Defines values for ListOwnGrantsParamsState.
+const (
+	ListOwnGrantsParamsStateActive  ListOwnGrantsParamsState = "active"
+	ListOwnGrantsParamsStateRevoked ListOwnGrantsParamsState = "revoked"
+)
+
+// Valid indicates whether the value is a known member of the ListOwnGrantsParamsState enum.
+func (e ListOwnGrantsParamsState) Valid() bool {
+	switch e {
+	case ListOwnGrantsParamsStateActive:
+		return true
+	case ListOwnGrantsParamsStateRevoked:
+		return true
+	default:
+		return false
+	}
+}
+
 // Acknowledgement defines model for Acknowledgement.
 type Acknowledgement struct {
 	Note   string                `json:"note"`
@@ -502,9 +580,16 @@ type CatalogItem struct {
 
 // Consent defines model for Consent.
 type Consent struct {
-	Application Application `json:"application"`
-	ExpiresAt   time.Time   `json:"expires_at"`
-	Id          string      `json:"id"`
+	// ActiveGrantExpiresAt 当前有效授权的到期时间；无有效授权时省略。
+	ActiveGrantExpiresAt *time.Time `json:"active_grant_expires_at,omitempty"`
+
+	// ActiveGrantedScopes 当前用户对该应用仍处于有效期的已授权范围；无有效授权时为空数组。
+	ActiveGrantedScopes []Scope `json:"active_granted_scopes"`
+
+	// Application 面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。
+	Application ConsentApplication `json:"application"`
+	ExpiresAt   time.Time          `json:"expires_at"`
+	Id          string             `json:"id"`
 
 	// QqTiers Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested.
 	QqTiers         []ConsentQqTiers `json:"qq_tiers"`
@@ -515,14 +600,32 @@ type Consent struct {
 // ConsentQqTiers defines model for Consent.QqTiers.
 type ConsentQqTiers string
 
+// ConsentApplication 面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。
+type ConsentApplication struct {
+	ClientType   ConsentApplicationClientType `json:"client_type"`
+	GrantSeconds int                          `json:"grant_seconds"`
+	Id           string                       `json:"id"`
+	Name         string                       `json:"name"`
+	Purpose      string                       `json:"purpose"`
+}
+
+// ConsentApplicationClientType defines model for ConsentApplication.ClientType.
+type ConsentApplicationClientType string
+
 // ConsentDecision defines model for ConsentDecision.
 type ConsentDecision struct {
 	Decision ConsentDecisionDecision `json:"decision"`
-	Scopes   []Scope                 `json:"scopes"`
+
+	// Mode 同意时的范围合并方式：merge 保留当前仍有效且获批的既有范围并与本次勾选范围求并集；replace 仅保留本次勾选范围并对移除范围生成停止使用通知。
+	Mode   *ConsentDecisionMode `json:"mode,omitempty"`
+	Scopes []Scope              `json:"scopes"`
 }
 
 // ConsentDecisionDecision defines model for ConsentDecision.Decision.
 type ConsentDecisionDecision string
+
+// ConsentDecisionMode 同意时的范围合并方式：merge 保留当前仍有效且获批的既有范围并与本次勾选范围求并集；replace 仅保留本次勾选范围并对移除范围生成停止使用通知。
+type ConsentDecisionMode string
 
 // ConsentInput defines model for ConsentInput.
 type ConsentInput struct {
@@ -565,18 +668,29 @@ type Data struct {
 
 // Grant defines model for Grant.
 type Grant struct {
-	AppId     string     `json:"app_id"`
-	AppName   string     `json:"app_name"`
-	ExpiresAt time.Time  `json:"expires_at"`
-	Id        string     `json:"id"`
-	Revision  int64      `json:"revision"`
-	Scopes    []Scope    `json:"scopes"`
-	State     GrantState `json:"state"`
-	Subject   string     `json:"subject"`
+	AppId     string    `json:"app_id"`
+	AppName   string    `json:"app_name"`
+	ExpiresAt time.Time `json:"expires_at"`
+	GrantedAt time.Time `json:"granted_at"`
+	Id        string    `json:"id"`
+
+	// LastDataReadAt 最近一次向该应用返回业务数据的时间；尚未读取时省略。
+	LastDataReadAt *time.Time `json:"last_data_read_at,omitempty"`
+	Revision       int64      `json:"revision"`
+	Scopes         []Scope    `json:"scopes"`
+	State          GrantState `json:"state"`
+	Subject        string     `json:"subject"`
+
+	// TerminationReason 授权已失效时的终止原因；当前有效授权省略该字段。
+	TerminationReason *GrantTerminationReason `json:"termination_reason,omitempty"`
+	UpdatedAt         time.Time               `json:"updated_at"`
 }
 
 // GrantState defines model for Grant.State.
 type GrantState string
+
+// GrantTerminationReason 授权已失效时的终止原因；当前有效授权省略该字段。
+type GrantTerminationReason string
 
 // Grants defines model for Grants.
 type Grants struct {
@@ -675,8 +789,11 @@ type Revision struct {
 
 // RevokeInput defines model for RevokeInput.
 type RevokeInput struct {
-	Revision int64   `json:"revision"`
-	Scopes   []Scope `json:"scopes"`
+	Revision int64 `json:"revision"`
+
+	// RevokeAll 为 true 时直接撤回整单当前活跃授权，无需传入 scopes。
+	RevokeAll *bool    `json:"revoke_all,omitempty"`
+	Scopes    *[]Scope `json:"scopes,omitempty"`
 }
 
 // ScheduleItem defines model for ScheduleItem.
@@ -826,9 +943,14 @@ type ReadAuthorizedDataParams struct {
 
 // ListOwnGrantsParams defines parameters for ListOwnGrants.
 type ListOwnGrantsParams struct {
-	After *string `form:"after,omitempty" json:"after,omitempty"`
-	Limit *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	// State 按当前有效状态筛选授权列表。
+	State *ListOwnGrantsParamsState `form:"state,omitempty" json:"state,omitempty"`
+	After *string                   `form:"after,omitempty" json:"after,omitempty"`
+	Limit *int                      `form:"limit,omitempty" json:"limit,omitempty"`
 }
+
+// ListOwnGrantsParamsState defines parameters for ListOwnGrants.
+type ListOwnGrantsParamsState string
 
 // RevokeScopesParams defines parameters for RevokeScopes.
 type RevokeScopesParams struct {
@@ -1050,18 +1172,20 @@ type ClientInterface interface {
 	ReadAuthorizedData(ctx context.Context, scope Scope, params *ReadAuthorizedDataParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListOwnGrants performs a GET /api/v1/open-platform/grants (the `ListOwnGrants` operationId) request.
+	//
+	// 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。.
 	ListOwnGrants(ctx context.Context, params *ListOwnGrantsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RevokeScopesWithBody performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+	// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 	RevokeScopesWithBody(ctx context.Context, id string, params *RevokeScopesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RevokeScopes performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request.
 	// Takes a body of the `application/json` content type.
 	//
-	// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+	// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 	RevokeScopes(ctx context.Context, id string, params *RevokeScopesParams, body RevokeScopesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExchangeCodeWithBody performs a POST /api/v1/open-platform/token (the `ExchangeCode` operationId) request,
@@ -1401,6 +1525,8 @@ func (c *Client) ReadAuthorizedData(ctx context.Context, scope Scope, params *Re
 }
 
 // ListOwnGrants performs a GET /api/v1/open-platform/grants (the `ListOwnGrants` operationId) request.
+//
+// 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。.
 func (c *Client) ListOwnGrants(ctx context.Context, params *ListOwnGrantsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListOwnGrantsRequest(c.Server, params)
 	if err != nil {
@@ -1416,7 +1542,7 @@ func (c *Client) ListOwnGrants(ctx context.Context, params *ListOwnGrantsParams,
 // RevokeScopesWithBody performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request,
 // with any type of body and a specified content type.
 //
-// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 func (c *Client) RevokeScopesWithBody(ctx context.Context, id string, params *RevokeScopesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeScopesRequestWithBody(c.Server, id, params, contentType, body)
 	if err != nil {
@@ -1432,7 +1558,7 @@ func (c *Client) RevokeScopesWithBody(ctx context.Context, id string, params *Re
 // RevokeScopes performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request.
 // Takes a body of the `application/json` content type.
 //
-// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 func (c *Client) RevokeScopes(ctx context.Context, id string, params *RevokeScopesParams, body RevokeScopesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeScopesRequest(c.Server, id, params, body)
 	if err != nil {
@@ -2382,6 +2508,18 @@ func NewListOwnGrantsRequest(server string, params *ListOwnGrantsParams) (*http.
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
+		if params.State != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "state", *params.State, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if params.After != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "after", *params.After, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
@@ -2707,13 +2845,15 @@ type ClientWithResponsesInterface interface {
 
 	// ListOwnGrantsWithResponse performs a GET /api/v1/open-platform/grants (the `ListOwnGrants` operationId) request.
 	//
+	// 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	ListOwnGrantsWithResponse(ctx context.Context, params *ListOwnGrantsParams, reqEditors ...RequestEditorFn) (*ListOwnGrantsResponse, error)
 
 	// RevokeScopesWithBodyWithResponse performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+	// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	RevokeScopesWithBodyWithResponse(ctx context.Context, id string, params *RevokeScopesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RevokeScopesResponse, error)
@@ -2721,7 +2861,7 @@ type ClientWithResponsesInterface interface {
 	// RevokeScopesWithResponse performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+	// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 	RevokeScopesWithResponse(ctx context.Context, id string, params *RevokeScopesParams, body RevokeScopesJSONRequestBody, reqEditors ...RequestEditorFn) (*RevokeScopesResponse, error)
 
 	// ExchangeCodeWithBodyWithResponse performs a POST /api/v1/open-platform/token (the `ExchangeCode` operationId) request,
@@ -4538,6 +4678,8 @@ func (c *ClientWithResponses) ReadAuthorizedDataWithResponse(ctx context.Context
 
 // ListOwnGrantsWithResponse performs a GET /api/v1/open-platform/grants (the `ListOwnGrants` operationId) request.
 //
+// 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。.
+//
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ListOwnGrantsWithResponse(ctx context.Context, params *ListOwnGrantsParams, reqEditors ...RequestEditorFn) (*ListOwnGrantsResponse, error) {
 	rsp, err := c.ListOwnGrants(ctx, params, reqEditors...)
@@ -4550,7 +4692,7 @@ func (c *ClientWithResponses) ListOwnGrantsWithResponse(ctx context.Context, par
 // RevokeScopesWithBodyWithResponse performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request,
 // with any type of body and a specified content type.
 //
-// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) RevokeScopesWithBodyWithResponse(ctx context.Context, id string, params *RevokeScopesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RevokeScopesResponse, error) {
@@ -4564,7 +4706,7 @@ func (c *ClientWithResponses) RevokeScopesWithBodyWithResponse(ctx context.Conte
 // RevokeScopesWithResponse performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 func (c *ClientWithResponses) RevokeScopesWithResponse(ctx context.Context, id string, params *RevokeScopesParams, body RevokeScopesJSONRequestBody, reqEditors ...RequestEditorFn) (*RevokeScopesResponse, error) {
 	rsp, err := c.RevokeScopes(ctx, id, params, body, reqEditors...)
 	if err != nil {
