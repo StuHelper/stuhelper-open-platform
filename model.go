@@ -346,6 +346,7 @@ type ReviewItem struct {
 	ID        string    `json:"id"`
 	Kind      string    `json:"kind"`
 	TargetID  string    `json:"target_id"`
+	TermID    string    `json:"term_id,omitempty"`
 	Body      string    `json:"body"`
 	Ratings   [5]int    `json:"ratings"`
 	CreatedAt time.Time `json:"created_at"`

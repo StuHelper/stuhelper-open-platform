@@ -892,6 +892,9 @@ type ReviewItem struct {
 	Kind      string    `json:"kind"`
 	Ratings   []int     `json:"ratings"`
 	TargetId  string    `json:"target_id"`
+
+	// TermId 评价关联的修读学期标识；导师评价或未指定学期时省略。
+	TermId *string `json:"term_id,omitempty"`
 }
 
 // Revision defines model for Revision.

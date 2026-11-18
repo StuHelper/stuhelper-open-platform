@@ -3707,6 +3707,11 @@
             "type": "string",
             "maxLength": 128
           },
+          "term_id": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "评价关联的修读学期标识；导师评价或未指定学期时省略。"
+          },
           "body": {
             "type": "string",
             "maxLength": 100000

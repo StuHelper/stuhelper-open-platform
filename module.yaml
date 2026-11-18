@@ -36,6 +36,7 @@ scenario_tests:
     - consent_grants_test.go#TestConsentSummaryComparisonAndIncrementalMergeMode
     - projection_test.go#TestAllScopesProjectionsNormalizeNilSlicesFilterInactiveScheduleAndValidateBounds
     - timeouts_and_guards_test.go#TestOutOfTxTimeoutsNilSourceQuotaErrorWhitelistRedirectParamsAndExchangeClientOracle
+    - projection_test.go#TestPublicReviewsProjectionValidatesOptionalTermID
   OP-03:
     - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence

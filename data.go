@@ -242,7 +242,7 @@ func project(scope string, v Data) (Data, error) {
 		}
 		reviews := make([]ReviewItem, 0, len(*v.Reviews))
 		for _, item := range *v.Reviews {
-			if !validSingle(item.ID, 128, false) || !validSingle(item.Kind, 40, false) || !validSingle(item.TargetID, 128, false) || !validText(item.Body, 100000, false) || item.CreatedAt.IsZero() {
+			if !validSingle(item.ID, 128, false) || !validSingle(item.Kind, 40, false) || !validSingle(item.TargetID, 128, false) || !validSingle(item.TermID, 128, true) || !validText(item.Body, 100000, false) || item.CreatedAt.IsZero() {
 				return out, ErrUnavailable
 			}
 			for _, score := range item.Ratings {

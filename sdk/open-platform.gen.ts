@@ -613,6 +613,8 @@ export interface components {
             id: string;
             kind: string;
             target_id: string;
+            /** @description 评价关联的修读学期标识；导师评价或未指定学期时省略。 */
+            term_id?: string;
             body: string;
             /** Format: date-time */
             created_at: string;
