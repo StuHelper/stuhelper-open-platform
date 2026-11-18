@@ -234,7 +234,7 @@
     "/api/v1/open-platform/admin/apps": {
       "get": {
         "operationId": "listApplications",
-        "description": "",
+        "description": "按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。",
         "security": [
           {
             "session": []
@@ -246,7 +246,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Applications"
+                  "$ref": "#/components/schemas/AdminApplications"
                 }
               }
             }
@@ -324,6 +324,30 @@
         },
         "parameters": [
           {
+            "name": "state",
+            "in": "query",
+            "description": "按应用审批状态筛选。",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "changes_requested",
+                "active",
+                "suspended"
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "description": "按开发者账号标识精确筛选。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
             "name": "after",
             "in": "query",
             "schema": {
@@ -339,6 +363,110 @@
               "minimum": 1,
               "maximum": 100,
               "default": 50
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/admin/apps/{id}": {
+      "get": {
+        "operationId": "getAdminApplication",
+        "description": "管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminApplication"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "身份或令牌无效",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在或不属于本人",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "修订或幂等冲突",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "调用配额用尽",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "依赖不可用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
             }
           }
         ]
@@ -2678,6 +2806,143 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Application"
+            },
+            "maxItems": 100
+          },
+          "next": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "AdminApplication": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "purpose": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "redirect_uris": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 2048
+            },
+            "maxItems": 10
+          },
+          "requested_scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scope"
+            },
+            "maxItems": 8
+          },
+          "approved_scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scope"
+            },
+            "maxItems": 8
+          },
+          "client_type": {
+            "type": "string",
+            "enum": [
+              "public",
+              "confidential"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "changes_requested",
+              "active",
+              "suspended"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "credential_revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/Policy"
+          },
+          "active_grants": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "当前仍处于有效期的用户授权数量。"
+          },
+          "reviewed_by": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "最近一次执行审批或停用操作的管理员账号标识。"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "最近一次执行审批或停用操作的时间。"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "name",
+          "purpose",
+          "redirect_uris",
+          "requested_scopes",
+          "approved_scopes",
+          "client_type",
+          "state",
+          "note",
+          "revision",
+          "credential_revision",
+          "policy",
+          "active_grants",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "AdminApplications": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminApplication"
             },
             "maxItems": 100
           },

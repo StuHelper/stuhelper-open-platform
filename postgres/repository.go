@@ -132,60 +132,145 @@ func (t *transaction) CloseOwner(owner, id string) error {
 func (r *Repository) LocateApp(ctx context.Context, id string) (op.AppRecord, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	return decodeAppRecord(r.DB.QueryRowContext(ctx, `SELECT owner_key,secret_hash,updated_at,reviewed_by,reviewed_at,document,terminated_at FROM open_platform.apps WHERE id=$1`, id))
+}
+func decodeAppRecord(row scanner) (op.AppRecord, error) {
 	var out op.AppRecord
 	var raw []byte
-	e := r.DB.QueryRowContext(ctx, `SELECT owner_key,secret_hash,document FROM open_platform.apps WHERE id=$1`, id).Scan(&out.Owner, &out.SecretHash, &raw)
-	if e != nil {
+	var updatedAt time.Time
+	var reviewedAt sql.NullTime
+	if e := row.Scan(&out.Owner, &out.SecretHash, &updatedAt, &out.ReviewedBy, &reviewedAt, &raw, &out.TerminatedAt); e != nil {
 		return out, safe(e)
 	}
 	if json.Unmarshal(raw, &out.View) != nil {
 		return out, op.ErrUnavailable
 	}
+	out.UpdatedAt = updatedAt.UTC()
+	if reviewedAt.Valid {
+		at := reviewedAt.Time.UTC()
+		out.ReviewedAt = &at
+	}
 	return out, nil
+}
+func toAdminApp(a op.AppRecord, activeGrants int) op.AdminApplication {
+	return op.AdminApplication{
+		ID:                 a.View.ID,
+		Owner:              a.Owner,
+		Name:               a.View.Name,
+		Purpose:            a.View.Purpose,
+		RedirectURIs:       append([]string{}, a.View.RedirectURIs...),
+		RequestedScopes:    append([]string{}, a.View.RequestedScopes...),
+		ApprovedScopes:     append([]string{}, a.View.ApprovedScopes...),
+		ClientType:         a.View.ClientType,
+		State:              a.View.State,
+		Note:               a.View.Note,
+		Revision:           a.View.Revision,
+		CredentialRevision: a.View.CredentialRevision,
+		Policy:             a.View.Policy,
+		ActiveGrants:       activeGrants,
+		ReviewedBy:         a.ReviewedBy,
+		ReviewedAt:         a.ReviewedAt,
+		CreatedAt:          a.View.CreatedAt,
+		UpdatedAt:          a.UpdatedAt,
+	}
 }
 func (t *transaction) App(id string) (op.AppRecord, error) {
-	var out op.AppRecord
-	var raw []byte
-	var terminated sql.NullTime
-	e := t.tx.QueryRowContext(t.ctx, `SELECT owner_key,secret_hash,document,updated_at,terminated_at FROM open_platform.apps WHERE id=$1`, id).Scan(&out.Owner, &out.SecretHash, &raw, &out.UpdatedAt, &terminated)
-	if e != nil {
-		return out, safe(e)
-	}
-	if terminated.Valid {
-		ts := terminated.Time.UTC()
-		out.TerminatedAt = &ts
-	}
-	if json.Unmarshal(raw, &out.View) != nil {
-		return out, op.ErrUnavailable
-	}
-	return out, nil
+	return decodeAppRecord(t.tx.QueryRowContext(t.ctx, `SELECT owner_key,secret_hash,updated_at,reviewed_by,reviewed_at,document,terminated_at FROM open_platform.apps WHERE id=$1`, id))
 }
 func (t *transaction) Apps(owner string, admin bool, after string, limit int) ([]op.AppRecord, error) {
-	rows, e := t.tx.QueryContext(t.ctx, `SELECT owner_key,secret_hash,document,updated_at,terminated_at FROM open_platform.apps WHERE ($2 OR owner_key=$1) AND id>$3 ORDER BY id LIMIT $4`, owner, admin, after, limit)
+	rows, e := t.tx.QueryContext(t.ctx, `SELECT owner_key,secret_hash,updated_at,reviewed_by,reviewed_at,document,terminated_at FROM open_platform.apps WHERE ($2 OR owner_key=$1) AND id>$3 ORDER BY id LIMIT $4`, owner, admin, after, limit)
 	if e != nil {
 		return nil, safe(e)
 	}
 	defer rows.Close()
 	out := []op.AppRecord{}
 	for rows.Next() {
-		var a op.AppRecord
-		var b []byte
-		var terminated sql.NullTime
-		if e = rows.Scan(&a.Owner, &a.SecretHash, &b, &a.UpdatedAt, &terminated); e != nil {
-			return nil, safe(e)
-		}
-		if terminated.Valid {
-			ts := terminated.Time.UTC()
-			a.TerminatedAt = &ts
-		}
-		if json.Unmarshal(b, &a.View) != nil {
-			return nil, op.ErrUnavailable
+		a, e := decodeAppRecord(rows)
+		if e != nil {
+			return nil, e
 		}
 		out = append(out, a)
 	}
 	return out, safe(rows.Err())
 }
+func (t *transaction) AdminApp(id string, now time.Time) (op.AdminApplication, error) {
+	var raw []byte
+	var rec op.AppRecord
+	var updatedAt time.Time
+	var reviewedAt sql.NullTime
+	var activeGrants int
+	e := t.tx.QueryRowContext(t.ctx, `
+SELECT a.owner_key, a.secret_hash, a.updated_at, a.reviewed_by, a.reviewed_at, a.document,
+	CASE WHEN a.state='active' AND NOT COALESCE(d.closed,false) THEN (
+		SELECT count(*) FROM open_platform.grants g
+		LEFT JOIN open_platform.owners u ON u.owner_key=g.owner_key
+		WHERE g.app_id=a.id AND g.state='active' AND g.app_revision=a.revision AND g.expires_at>$2 AND NOT COALESCE(u.closed,false)
+	) ELSE 0 END
+FROM open_platform.apps a
+LEFT JOIN open_platform.owners d ON d.owner_key=a.owner_key
+WHERE a.id=$1`, id, now).Scan(&rec.Owner, &rec.SecretHash, &updatedAt, &rec.ReviewedBy, &reviewedAt, &raw, &activeGrants)
+	if e != nil {
+		return op.AdminApplication{}, safe(e)
+	}
+	if json.Unmarshal(raw, &rec.View) != nil {
+		return op.AdminApplication{}, op.ErrUnavailable
+	}
+	rec.UpdatedAt = updatedAt.UTC()
+	if reviewedAt.Valid {
+		at := reviewedAt.Time.UTC()
+		rec.ReviewedAt = &at
+	}
+	return toAdminApp(rec, activeGrants), nil
+}
+func (t *transaction) AdminApps(state, owner string, now time.Time, cursor op.AppCursor, limit int) ([]op.AdminApplication, error) {
+	rows, e := t.tx.QueryContext(t.ctx, `
+SELECT a.owner_key, a.secret_hash, a.updated_at, a.reviewed_by, a.reviewed_at, a.document,
+	CASE WHEN a.state='active' AND NOT COALESCE(d.closed,false) THEN (
+		SELECT count(*) FROM open_platform.grants g
+		LEFT JOIN open_platform.owners u ON u.owner_key=g.owner_key
+		WHERE g.app_id=a.id AND g.state='active' AND g.app_revision=a.revision AND g.expires_at>$3 AND NOT COALESCE(u.closed,false)
+	) ELSE 0 END
+FROM open_platform.apps a
+LEFT JOIN open_platform.owners d ON d.owner_key=a.owner_key
+WHERE ($1='' OR a.state=$1)
+  AND ($2='' OR a.owner_key=$2)
+  AND (NOT $4 OR a.updated_at<$5 OR (a.updated_at=$5 AND a.id<$6))
+ORDER BY a.updated_at DESC, a.id DESC
+LIMIT $7`, state, owner, now, cursor.Set, cursor.UpdatedAt, cursor.ID, limit)
+	if e != nil {
+		return nil, safe(e)
+	}
+	defer rows.Close()
+	out := []op.AdminApplication{}
+	for rows.Next() {
+		var raw []byte
+		var rec op.AppRecord
+		var updatedAt time.Time
+		var reviewedAt sql.NullTime
+		var activeGrants int
+		if e = rows.Scan(&rec.Owner, &rec.SecretHash, &updatedAt, &rec.ReviewedBy, &reviewedAt, &raw, &activeGrants); e != nil {
+			return nil, safe(e)
+		}
+		if json.Unmarshal(raw, &rec.View) != nil {
+			return nil, op.ErrUnavailable
+		}
+		rec.UpdatedAt = updatedAt.UTC()
+		if reviewedAt.Valid {
+			at := reviewedAt.Time.UTC()
+			rec.ReviewedAt = &at
+		}
+		out = append(out, toAdminApp(rec, activeGrants))
+	}
+	return out, safe(rows.Err())
+}
 func (t *transaction) SaveApp(a op.AppRecord) error {
+	if a.UpdatedAt.IsZero() {
+		if !a.View.CreatedAt.IsZero() {
+			a.UpdatedAt = a.View.CreatedAt.UTC().Truncate(time.Microsecond)
+		} else {
+			a.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
+		}
+	}
 	raw, e := encode(a.View)
 	if e != nil {
 		return op.ErrUnavailable
@@ -194,7 +279,7 @@ func (t *transaction) SaveApp(a op.AppRecord) error {
 	if updatedAt.IsZero() {
 		updatedAt = a.View.CreatedAt
 	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps(id,owner_key,state,revision,secret_hash,document,updated_at,terminated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO UPDATE SET revision_work_pending=open_platform.apps.revision_work_pending OR ((open_platform.apps.revision,open_platform.apps.state) IS DISTINCT FROM (EXCLUDED.revision,EXCLUDED.state) AND EXISTS (SELECT 1 FROM open_platform.grants g WHERE g.app_id=EXCLUDED.id AND g.state='active')),state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,document=EXCLUDED.document,updated_at=EXCLUDED.updated_at,terminated_at=EXCLUDED.terminated_at`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, raw, updatedAt, a.TerminatedAt)
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps(id,owner_key,state,revision,secret_hash,document,updated_at,terminated_at,reviewed_by,reviewed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(id) DO UPDATE SET revision_work_pending=open_platform.apps.revision_work_pending OR ((open_platform.apps.revision,open_platform.apps.state) IS DISTINCT FROM (EXCLUDED.revision,EXCLUDED.state) AND EXISTS (SELECT 1 FROM open_platform.grants g WHERE g.app_id=EXCLUDED.id AND g.state='active')),state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,document=EXCLUDED.document,updated_at=EXCLUDED.updated_at,terminated_at=EXCLUDED.terminated_at,reviewed_by=EXCLUDED.reviewed_by,reviewed_at=EXCLUDED.reviewed_at`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, raw, updatedAt, a.TerminatedAt, a.ReviewedBy, a.ReviewedAt)
 	return safe(e)
 }
 func (t *transaction) CountApps(owner string) (int, error) {

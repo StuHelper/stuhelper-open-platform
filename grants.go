@@ -229,7 +229,7 @@ func (s *Service) CloseAccount(ctx context.Context, owner, closureID string) err
 			if e := t.CloseOwner(owner, closureID); e != nil {
 				return false, auditSpec{}, e
 			}
-			if e := t.SuspendOwnedApps(owner, s.now()); e != nil {
+			if e := t.SuspendOwnedApps(owner, s.now().Truncate(time.Microsecond)); e != nil {
 				return false, auditSpec{}, e
 			}
 			return true, auditSpec{actor: owner, action: "account_closed", target: owner}, nil

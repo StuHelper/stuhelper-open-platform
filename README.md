@@ -4,7 +4,7 @@
 
 ## 当前实现
 
-开发者提交名称、用途、HTTPS 回调与信息范围。管理员逐项审批并设置授权期限、令牌期限和 UTC 日调用配额。登录不会自动授予业务信息权限。
+开发者提交名称、用途、HTTPS 回调与信息范围。管理员可在后台按审批状态或申请人筛选并按更新时间倒序查看申请与有效授权规模，逐项审批并设置授权期限、令牌期限和 UTC 日调用配额。登录不会自动授予业务信息权限。
 
 稳定范围为 student_status、schools、qq_binding_status、qq_binding_details、profile、schedule、catalog、public_reviews。目录与公开评价仍由提供方执行当前内容准入。课表读取本人有效选课记录对应的排课，空 meetings 表示没有提供排课，不能推断用户空闲。
 

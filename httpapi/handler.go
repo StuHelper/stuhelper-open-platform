@@ -149,10 +149,14 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			result, e = h.Service.Applications(r.Context(), p, false, after, limit)
 		}
 	case path == "admin/apps" && r.Method == "GET":
-		var after string
-		var limit int
-		if after, limit, e = queryPage(r); e == nil {
-			result, e = h.Service.Applications(r.Context(), p, true, after, limit)
+		var f op.AdminAppFilter
+		f, e = queryAdminApps(r)
+		if e == nil {
+			result, e = h.Service.AdminApplications(r.Context(), p, f)
+		}
+	case len(parts) == 3 && parts[0] == "admin" && parts[1] == "apps" && r.Method == "GET":
+		if noQuery() {
+			result, e = h.Service.AdminApplication(r.Context(), p, parts[2])
 		}
 	case len(parts) == 2 && parts[0] == "apps" && r.Method == "GET":
 		if noQuery() {
@@ -344,4 +348,22 @@ func (h Handler) data(w http.ResponseWriter, r *http.Request, scope string) {
 		return
 	}
 	write(w, 200, out)
+}
+
+func queryAdminApps(r *http.Request) (op.AdminAppFilter, error) {
+	for k, v := range r.URL.Query() {
+		if !slices.Contains([]string{"state", "owner", "after", "limit"}, k) || len(v) != 1 {
+			return op.AdminAppFilter{}, op.ErrInput
+		}
+	}
+	limit := 50
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		n, e := strconv.Atoi(raw)
+		if e != nil {
+			return op.AdminAppFilter{}, op.ErrInput
+		}
+		limit = n
+	}
+	q := r.URL.Query()
+	return op.AdminAppFilter{State: q.Get("state"), Owner: q.Get("owner"), After: q.Get("after"), Limit: limit}, nil
 }

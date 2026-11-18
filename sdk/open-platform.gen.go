@@ -38,6 +38,48 @@ func (e AcknowledgementStatus) Valid() bool {
 	}
 }
 
+// Defines values for AdminApplicationClientType.
+const (
+	AdminApplicationClientTypeConfidential AdminApplicationClientType = "confidential"
+	AdminApplicationClientTypePublic       AdminApplicationClientType = "public"
+)
+
+// Valid indicates whether the value is a known member of the AdminApplicationClientType enum.
+func (e AdminApplicationClientType) Valid() bool {
+	switch e {
+	case AdminApplicationClientTypeConfidential:
+		return true
+	case AdminApplicationClientTypePublic:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminApplicationState.
+const (
+	AdminApplicationStateActive           AdminApplicationState = "active"
+	AdminApplicationStateChangesRequested AdminApplicationState = "changes_requested"
+	AdminApplicationStatePending          AdminApplicationState = "pending"
+	AdminApplicationStateSuspended        AdminApplicationState = "suspended"
+)
+
+// Valid indicates whether the value is a known member of the AdminApplicationState enum.
+func (e AdminApplicationState) Valid() bool {
+	switch e {
+	case AdminApplicationStateActive:
+		return true
+	case AdminApplicationStateChangesRequested:
+		return true
+	case AdminApplicationStatePending:
+		return true
+	case AdminApplicationStateSuspended:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ApplicationClientType.
 const (
 	ApplicationClientTypeConfidential ApplicationClientType = "confidential"
@@ -386,6 +428,30 @@ func (e TokenInputGrantType) Valid() bool {
 	}
 }
 
+// Defines values for ListApplicationsParamsState.
+const (
+	ListApplicationsParamsStateActive           ListApplicationsParamsState = "active"
+	ListApplicationsParamsStateChangesRequested ListApplicationsParamsState = "changes_requested"
+	ListApplicationsParamsStatePending          ListApplicationsParamsState = "pending"
+	ListApplicationsParamsStateSuspended        ListApplicationsParamsState = "suspended"
+)
+
+// Valid indicates whether the value is a known member of the ListApplicationsParamsState enum.
+func (e ListApplicationsParamsState) Valid() bool {
+	switch e {
+	case ListApplicationsParamsStateActive:
+		return true
+	case ListApplicationsParamsStateChangesRequested:
+		return true
+	case ListApplicationsParamsStatePending:
+		return true
+	case ListApplicationsParamsStateSuspended:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListOwnGrantsParamsState.
 const (
 	ListOwnGrantsParamsStateActive  ListOwnGrantsParamsState = "active"
@@ -412,6 +478,45 @@ type Acknowledgement struct {
 
 // AcknowledgementStatus defines model for Acknowledgement.Status.
 type AcknowledgementStatus string
+
+// AdminApplication defines model for AdminApplication.
+type AdminApplication struct {
+	// ActiveGrants 当前仍处于有效期的用户授权数量。
+	ActiveGrants       int                        `json:"active_grants"`
+	ApprovedScopes     []Scope                    `json:"approved_scopes"`
+	ClientType         AdminApplicationClientType `json:"client_type"`
+	CreatedAt          time.Time                  `json:"created_at"`
+	CredentialRevision int64                      `json:"credential_revision"`
+	Id                 string                     `json:"id"`
+	Name               string                     `json:"name"`
+	Note               string                     `json:"note"`
+	Owner              string                     `json:"owner"`
+	Policy             Policy                     `json:"policy"`
+	Purpose            string                     `json:"purpose"`
+	RedirectUris       []string                   `json:"redirect_uris"`
+	RequestedScopes    []Scope                    `json:"requested_scopes"`
+
+	// ReviewedAt 最近一次执行审批或停用操作的时间。
+	ReviewedAt *time.Time `json:"reviewed_at,omitempty"`
+
+	// ReviewedBy 最近一次执行审批或停用操作的管理员账号标识。
+	ReviewedBy *string               `json:"reviewed_by,omitempty"`
+	Revision   int64                 `json:"revision"`
+	State      AdminApplicationState `json:"state"`
+	UpdatedAt  time.Time             `json:"updated_at"`
+}
+
+// AdminApplicationClientType defines model for AdminApplication.ClientType.
+type AdminApplicationClientType string
+
+// AdminApplicationState defines model for AdminApplication.State.
+type AdminApplicationState string
+
+// AdminApplications defines model for AdminApplications.
+type AdminApplications struct {
+	Items []AdminApplication `json:"items"`
+	Next  *string            `json:"next,omitempty"`
+}
 
 // Application defines model for Application.
 type Application struct {
@@ -753,9 +858,17 @@ type TokenInputGrantType string
 
 // ListApplicationsParams defines parameters for ListApplications.
 type ListApplicationsParams struct {
+	// State 按应用审批状态筛选。
+	State *ListApplicationsParamsState `form:"state,omitempty" json:"state,omitempty"`
+
+	// Owner 按开发者账号标识精确筛选。
+	Owner *string `form:"owner,omitempty" json:"owner,omitempty"`
 	After *string `form:"after,omitempty" json:"after,omitempty"`
 	Limit *int    `form:"limit,omitempty" json:"limit,omitempty"`
 }
+
+// ListApplicationsParamsState defines parameters for ListApplications.
+type ListApplicationsParamsState string
 
 // ReviewApplicationParams defines parameters for ReviewApplication.
 type ReviewApplicationParams struct {
@@ -946,7 +1059,14 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 type ClientInterface interface {
 
 	// ListApplications performs a GET /api/v1/open-platform/admin/apps (the `ListApplications` operationId) request.
+	//
+	// 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。.
 	ListApplications(ctx context.Context, params *ListApplicationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminApplication performs a GET /api/v1/open-platform/admin/apps/{id} (the `GetAdminApplication` operationId) request.
+	//
+	// 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。.
+	GetAdminApplication(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReviewApplicationWithBody performs a POST /api/v1/open-platform/admin/apps/{id}/review (the `ReviewApplication` operationId) request,
 	// with any type of body and a specified content type.
@@ -1082,8 +1202,25 @@ type ClientInterface interface {
 }
 
 // ListApplications performs a GET /api/v1/open-platform/admin/apps (the `ListApplications` operationId) request.
+//
+// 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。.
 func (c *Client) ListApplications(ctx context.Context, params *ListApplicationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListApplicationsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetAdminApplication performs a GET /api/v1/open-platform/admin/apps/{id} (the `GetAdminApplication` operationId) request.
+//
+// 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。.
+func (c *Client) GetAdminApplication(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminApplicationRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1494,6 +1631,30 @@ func NewListApplicationsRequest(server string, params *ListApplicationsParams) (
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
+		if params.State != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "state", *params.State, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Owner != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "owner", *params.Owner, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if params.After != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "after", *params.After, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
@@ -1522,6 +1683,40 @@ func NewListApplicationsRequest(server string, params *ListApplicationsParams) (
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
 		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminApplicationRequest constructs an http.Request for the GetAdminApplication method
+func NewGetAdminApplicationRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/open-platform/admin/apps/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -2509,8 +2704,17 @@ type ClientWithResponsesInterface interface {
 
 	// ListApplicationsWithResponse performs a GET /api/v1/open-platform/admin/apps (the `ListApplications` operationId) request.
 	//
+	// 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	ListApplicationsWithResponse(ctx context.Context, params *ListApplicationsParams, reqEditors ...RequestEditorFn) (*ListApplicationsResponse, error)
+
+	// GetAdminApplicationWithResponse performs a GET /api/v1/open-platform/admin/apps/{id} (the `GetAdminApplication` operationId) request.
+	//
+	// 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetAdminApplicationWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetAdminApplicationResponse, error)
 
 	// ReviewApplicationWithBodyWithResponse performs a POST /api/v1/open-platform/admin/apps/{id}/review (the `ReviewApplication` operationId) request,
 	// with any type of body and a specified content type.
@@ -2679,7 +2883,7 @@ type ListApplicationsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *Applications
+	JSON200 *AdminApplications
 	// JSON400 the response for an HTTP 400 `application/json` response
 	JSON400 *Problem
 	// JSON401 the response for an HTTP 401 `application/json` response
@@ -2697,7 +2901,7 @@ type ListApplicationsResponse struct {
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r ListApplicationsResponse) GetJSON200() *Applications {
+func (r ListApplicationsResponse) GetJSON200() *AdminApplications {
 	return r.JSON200
 }
 
@@ -2759,6 +2963,96 @@ func (r ListApplicationsResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListApplicationsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetAdminApplicationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AdminApplication
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Problem
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Problem
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Problem
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Problem
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Problem
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *Problem
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON200() *AdminApplication {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON400() *Problem {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON401() *Problem {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON403() *Problem {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON404() *Problem {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON409() *Problem {
+	return r.JSON409
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON429() *Problem {
+	return r.JSON429
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON503() *Problem {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetAdminApplicationResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminApplicationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminApplicationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetAdminApplicationResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -4117,6 +4411,8 @@ func (r ExchangeCodeResponse) ContentType() string {
 
 // ListApplicationsWithResponse performs a GET /api/v1/open-platform/admin/apps (the `ListApplications` operationId) request.
 //
+// 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。.
+//
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ListApplicationsWithResponse(ctx context.Context, params *ListApplicationsParams, reqEditors ...RequestEditorFn) (*ListApplicationsResponse, error) {
 	rsp, err := c.ListApplications(ctx, params, reqEditors...)
@@ -4124,6 +4420,19 @@ func (c *ClientWithResponses) ListApplicationsWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseListApplicationsResponse(rsp)
+}
+
+// GetAdminApplicationWithResponse performs a GET /api/v1/open-platform/admin/apps/{id} (the `GetAdminApplication` operationId) request.
+//
+// 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetAdminApplicationWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetAdminApplicationResponse, error) {
+	rsp, err := c.GetAdminApplication(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminApplicationResponse(rsp)
 }
 
 // ReviewApplicationWithBodyWithResponse performs a POST /api/v1/open-platform/admin/apps/{id}/review (the `ReviewApplication` operationId) request,
@@ -4447,7 +4756,82 @@ func ParseListApplicationsResponse(rsp *http.Response) (*ListApplicationsRespons
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Applications
+		var dest AdminApplications
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminApplicationResponse parses an HTTP response from a GetAdminApplicationWithResponse call
+func ParseGetAdminApplicationResponse(rsp *http.Response) (*GetAdminApplicationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminApplicationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminApplication
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -29,6 +29,7 @@ scenario_tests:
     - audit_integrity_test.go#TestEmptyCleanupPreservesAuditSnapshotAndMutationsRecordTargetsReasonsAndControlledClock
   OP-01:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
+    - admin_apps_test.go#TestAdminApplicationFilteringOrderingAndDetailStats
   OP-02:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
     - consent_grants_test.go#TestLegacyConsentKeepsDisplayedApprovalRevision

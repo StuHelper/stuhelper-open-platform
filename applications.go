@@ -1,6 +1,14 @@
 package openplatform
 
-import "context"
+import (
+	"context"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+	"unicode"
+	"unicode/utf8"
+)
 
 func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in ApplicationInput) (Application, error) {
 	var out Application
@@ -19,7 +27,7 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 		}
 		var e error
 		out, e = replay(t, p.Owner, key, "application:"+id, in, s.now(), func() (Application, auditSpec, error) {
-			now := s.now()
+			now := s.now().Truncate(time.Microsecond)
 			var a AppRecord
 			if id == "" {
 				n, e := t.CountApps(p.Owner)
@@ -93,6 +101,76 @@ func (s *Service) Application(ctx context.Context, p Principal, id string) (Appl
 	})
 	return out, e
 }
+func parseAppCursor(after string) (AppCursor, error) {
+	if after == "" {
+		return AppCursor{}, nil
+	}
+	rawMicros, id, ok := strings.Cut(after, "|")
+	if !ok || id == "" || !utf8.ValidString(id) || strings.ContainsFunc(id, unicode.IsControl) {
+		return AppCursor{}, ErrInput
+	}
+	micros, e := strconv.ParseInt(rawMicros, 10, 64)
+	if e != nil {
+		return AppCursor{}, ErrInput
+	}
+	return AppCursor{Set: true, UpdatedAt: time.UnixMicro(micros).UTC(), ID: id}, nil
+}
+func formatAppCursor(a AdminApplication) string {
+	return strconv.FormatInt(a.UpdatedAt.UTC().UnixMicro(), 10) + "|" + a.ID
+}
+func (s *Service) AdminApplication(ctx context.Context, p Principal, id string) (AdminApplication, error) {
+	var out AdminApplication
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !p.Admin {
+		return out, ErrForbidden
+	}
+	e := s.transaction(ctx, p.Owner, id, func(t Transaction) error {
+		if e := s.activeOwner(t, p.Owner); e != nil {
+			return e
+		}
+		var e error
+		out, e = t.AdminApp(id, s.now())
+		return e
+	})
+	return out, e
+}
+func (s *Service) AdminApplications(ctx context.Context, p Principal, f AdminAppFilter) (Page[AdminApplication], error) {
+	var out Page[AdminApplication]
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !p.Admin {
+		return out, ErrForbidden
+	}
+	if f.State != "" && !slices.Contains([]string{"pending", "changes_requested", "active", "suspended"}, f.State) {
+		return out, ErrInput
+	}
+	if f.Owner != "" && !validOwner(f.Owner) {
+		return out, ErrInput
+	}
+	limit, e := pagination(f.After, f.Limit)
+	if e != nil {
+		return out, e
+	}
+	cursor, e := parseAppCursor(f.After)
+	if e != nil {
+		return out, e
+	}
+	e = s.transaction(ctx, p.Owner, "", func(t Transaction) error {
+		if e := s.activeOwner(t, p.Owner); e != nil {
+			return e
+		}
+		rows, e := t.AdminApps(f.State, f.Owner, s.now(), cursor, limit+1)
+		if e != nil {
+			return e
+		}
+		out = page(rows, limit, formatAppCursor)
+		return nil
+	})
+	return out, e
+}
 func (s *Service) Applications(ctx context.Context, p Principal, admin bool, after string, limit int) (Page[Application], error) {
 	var out Page[Application]
 	if !validOwner(p.Owner) {
@@ -160,7 +238,7 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 			if !subset(in.ApprovedScopes, a.View.RequestedScopes) {
 				return out, auditSpec{}, ErrInput
 			}
-			now := s.now()
+			now := s.now().Truncate(time.Microsecond)
 			a.UpdatedAt = now
 			switch in.Decision {
 			case "approve":
@@ -177,6 +255,9 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 			}
 			a.View.Revision++
 			a.View.Note = in.Note
+			a.UpdatedAt = now
+			a.ReviewedBy = p.Owner
+			a.ReviewedAt = &now
 			if e = t.SaveApp(a); e != nil {
 				return out, auditSpec{}, e
 			}
