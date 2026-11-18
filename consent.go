@@ -18,7 +18,7 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 	}
 	var e error
 	in.Scopes, e = validateScopes(in.Scopes, false)
-	if e != nil || in.Method != "S256" || len(in.Challenge) != 43 || len(in.State) < 16 || len(in.State) > 512 || !validText(in.State, 512, false) {
+	if e != nil || !validToken(in.ClientID, 64) || !validToken(in.RedirectURI, 2048) || in.Method != "S256" || len(in.Challenge) != 43 || len(in.State) < 16 || len(in.State) > 512 || !validLine(in.State, 512, false) {
 		return out, ErrInput
 	}
 	b, e := base64.RawURLEncoding.DecodeString(in.Challenge)
@@ -60,6 +60,12 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 }
 func (s *Service) Consent(ctx context.Context, p Principal, id string) (Consent, error) {
 	var out Consent
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !validID(id) {
+		return out, ErrInput
+	}
 	e := s.transaction(ctx, p.Owner, "", func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
@@ -89,7 +95,7 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 	}
 	var e error
 	in.Scopes, e = validateScopes(in.Scopes, in.Decision == "deny")
-	if e != nil || (in.Decision != "approve" && in.Decision != "deny") || (in.Decision == "deny" && len(in.Scopes) != 0) {
+	if e != nil || !validID(id) || (in.Decision != "approve" && in.Decision != "deny") || (in.Decision == "deny" && len(in.Scopes) != 0) {
 		return out, ErrInput
 	}
 	located, e := s.Repo.LocateConsent(ctx, id)
@@ -220,7 +226,7 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 	if e := s.ready(); e != nil {
 		return out, e
 	}
-	if in.GrantType != "authorization_code" || len(in.Code) > 160 || !validVerifier(in.Verifier) {
+	if in.GrantType != "authorization_code" || !validToken(in.ClientID, 64) || !validToken(in.RedirectURI, 2048) || !validToken(in.Code, 160) || (in.ClientSecret != "" && !validToken(in.ClientSecret, 256)) || !validVerifier(in.Verifier) {
 		return out, ErrInput
 	}
 	located, e := s.Repo.LocateCode(ctx, hash(in.Code))
