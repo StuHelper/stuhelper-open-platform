@@ -202,8 +202,10 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case path == "grants" && r.Method == "GET":
 		var after string
 		var limit int
-		if after, limit, e = queryPage(r); e == nil {
-			result, e = h.Service.Grants(r.Context(), p, after, limit)
+		var state string
+		state, after, limit, e = queryGrantsPage(r)
+		if e == nil {
+			result, e = h.Service.ListGrants(r.Context(), p, state, after, limit)
 		}
 	case len(parts) == 3 && parts[0] == "grants" && parts[2] == "revoke" && r.Method == "POST":
 		if noQuery() {
@@ -249,6 +251,22 @@ func queryPage(r *http.Request) (string, int, error) {
 		limit = n
 	}
 	return r.URL.Query().Get("after"), limit, nil
+}
+func queryGrantsPage(r *http.Request) (string, string, int, error) {
+	for k, v := range r.URL.Query() {
+		if !slices.Contains([]string{"state", "after", "limit"}, k) || len(v) != 1 {
+			return "", "", 0, op.ErrInput
+		}
+	}
+	limit := 50
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		n, e := strconv.Atoi(raw)
+		if e != nil {
+			return "", "", 0, op.ErrInput
+		}
+		limit = n
+	}
+	return r.URL.Query().Get("state"), r.URL.Query().Get("after"), limit, nil
 }
 func (h Handler) token(w http.ResponseWriter, r *http.Request) {
 	bad := func(code string, status int) { write(w, status, map[string]string{"error": code}) }

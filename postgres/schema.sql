@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS open_platform.grants(id text PRIMARY KEY,app_id text 
 ALTER TABLE open_platform.grants ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS terminated_at timestamptz;
 CREATE INDEX IF NOT EXISTS grants_owner ON open_platform.grants(owner_key,id);
 CREATE INDEX IF NOT EXISTS grants_active_owner ON open_platform.grants(owner_key,id) WHERE state='active';
+ALTER TABLE open_platform.grants ADD COLUMN IF NOT EXISTS granted_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE open_platform.grants ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE open_platform.grants ADD COLUMN IF NOT EXISTS last_data_read_at timestamptz;
+CREATE INDEX IF NOT EXISTS grants_owner_updated ON open_platform.grants(owner_key,updated_at DESC,id DESC);
 CREATE INDEX IF NOT EXISTS grants_expiry ON open_platform.grants(expires_at,id) WHERE state='active';
 CREATE INDEX IF NOT EXISTS grants_app_revision ON open_platform.grants(app_id,app_revision,id) WHERE state='active';
 -- Existing grants can already be stale when this migration first runs.
@@ -24,6 +28,9 @@ END $$;
 CREATE INDEX IF NOT EXISTS apps_pending_work ON open_platform.apps(id) WHERE revision_work_pending;
 CREATE INDEX IF NOT EXISTS grants_terminated ON open_platform.grants(terminated_at,id) WHERE terminated_at IS NOT NULL;
 CREATE TABLE IF NOT EXISTS open_platform.consents(id text PRIMARY KEY,owner_key text NOT NULL,app_id text NOT NULL REFERENCES open_platform.apps(id),code_hash text UNIQUE,expires_at timestamptz NOT NULL,document jsonb NOT NULL);
+-- Older consent records stored the approval revision in the application shown to the user.
+UPDATE open_platform.consents SET document=jsonb_set(document,'{AppRevision}',document#>'{View,application,revision}')
+WHERE NOT document ? 'AppRevision' AND jsonb_typeof(document#>'{View,application,revision}')='number';
 CREATE TABLE IF NOT EXISTS open_platform.tokens(hash text PRIMARY KEY,grant_id text NOT NULL REFERENCES open_platform.grants(id),expires_at timestamptz NOT NULL,document jsonb NOT NULL);
 CREATE TABLE IF NOT EXISTS open_platform.quotas(app_id text NOT NULL REFERENCES open_platform.apps(id),day text NOT NULL,used integer NOT NULL,PRIMARY KEY(app_id,day));
 CREATE TABLE IF NOT EXISTS open_platform.notices(id text PRIMARY KEY,position bigint GENERATED ALWAYS AS IDENTITY UNIQUE,created_at timestamptz NOT NULL,app_id text NOT NULL REFERENCES open_platform.apps(id),document jsonb NOT NULL);

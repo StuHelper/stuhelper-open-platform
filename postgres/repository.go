@@ -252,16 +252,37 @@ func (r *Repository) LocateCode(ctx context.Context, h string) (op.ConsentRecord
 	defer cancel()
 	return decode[op.ConsentRecord](r.DB.QueryRowContext(ctx, `SELECT document FROM open_platform.consents WHERE code_hash=$1`, h))
 }
+func decodeGrant(row scanner) (op.GrantRecord, error) {
+	var out op.GrantRecord
+	var raw []byte
+	var grantedAt, updatedAt time.Time
+	var lastReadAt sql.NullTime
+	if e := row.Scan(&raw, &grantedAt, &updatedAt, &lastReadAt); e != nil {
+		return out, safe(e)
+	}
+	if json.Unmarshal(raw, &out) != nil {
+		return out, op.ErrUnavailable
+	}
+	out.View.GrantedAt = grantedAt.UTC()
+	out.View.UpdatedAt = updatedAt.UTC()
+	if lastReadAt.Valid {
+		at := lastReadAt.Time.UTC()
+		out.View.LastDataReadAt = &at
+	} else {
+		out.View.LastDataReadAt = nil
+	}
+	return out, nil
+}
 func (t *transaction) Grant(id string) (op.GrantRecord, error) {
-	return decode[op.GrantRecord](t.tx.QueryRowContext(t.ctx, `SELECT document FROM open_platform.grants WHERE id=$1`, id))
+	return decodeGrant(t.tx.QueryRowContext(t.ctx, `SELECT document,granted_at,updated_at,last_data_read_at FROM open_platform.grants WHERE id=$1`, id))
 }
 func (t *transaction) OwnerGrant(owner, app string) (op.GrantRecord, error) {
-	return decode[op.GrantRecord](t.tx.QueryRowContext(t.ctx, `SELECT document FROM open_platform.grants WHERE owner_key=$1 AND app_id=$2`, owner, app))
+	return decodeGrant(t.tx.QueryRowContext(t.ctx, `SELECT document,granted_at,updated_at,last_data_read_at FROM open_platform.grants WHERE owner_key=$1 AND app_id=$2`, owner, app))
 }
 func (r *Repository) LocateGrant(ctx context.Context, id string) (op.GrantRecord, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	return decode[op.GrantRecord](r.DB.QueryRowContext(ctx, `SELECT document FROM open_platform.grants WHERE id=$1`, id))
+	return decodeGrant(r.DB.QueryRowContext(ctx, `SELECT document,granted_at,updated_at,last_data_read_at FROM open_platform.grants WHERE id=$1`, id))
 }
 func (t *transaction) Grants(owner, after string, limit int) ([]op.GrantSummary, error) {
 	rows, e := t.tx.QueryContext(t.ctx, `SELECT g.document,a.state,a.revision,COALESCE(u.closed,false),COALESCE(d.closed,false) FROM open_platform.grants g JOIN open_platform.apps a ON a.id=g.app_id LEFT JOIN open_platform.owners u ON u.owner_key=g.owner_key LEFT JOIN open_platform.owners d ON d.owner_key=a.owner_key WHERE g.owner_key=$1 AND g.id>$2 ORDER BY g.id LIMIT $3`, owner, after, limit)
@@ -283,16 +304,68 @@ func (t *transaction) Grants(owner, after string, limit int) ([]op.GrantSummary,
 	}
 	return out, safe(rows.Err())
 }
+func (t *transaction) ListGrants(owner, state string, now time.Time, cursor op.GrantCursor, limit int) ([]op.GrantListEntry, error) {
+	rows, e := t.tx.QueryContext(t.ctx, `
+WITH evaluated AS (
+	SELECT g.id, g.document, g.granted_at, g.updated_at, g.last_data_read_at,
+		a.state AS app_state, a.revision AS current_app_revision,
+		(COALESCE(u.closed, false) OR COALESCE(d.closed, false)) AS owner_closed,
+		CASE WHEN g.state='active' AND g.expires_at>$2 AND a.state='active' AND g.app_revision=a.revision AND NOT COALESCE(u.closed,false) AND NOT COALESCE(d.closed,false) THEN 0 ELSE 1 END AS active_rank
+	FROM open_platform.grants g
+	JOIN open_platform.apps a ON a.id=g.app_id
+	LEFT JOIN open_platform.owners u ON u.owner_key=g.owner_key
+	LEFT JOIN open_platform.owners d ON d.owner_key=a.owner_key
+	WHERE g.owner_key=$1
+)
+SELECT document, granted_at, updated_at, last_data_read_at, app_state, current_app_revision, owner_closed
+FROM evaluated
+WHERE ($3='' OR ($3='active' AND active_rank=0) OR ($3='revoked' AND active_rank=1))
+  AND (NOT $4 OR active_rank>$5 OR (active_rank=$5 AND updated_at<$6) OR (active_rank=$5 AND updated_at=$6 AND id<$7))
+ORDER BY active_rank ASC, updated_at DESC, id DESC
+LIMIT $8`, owner, now, state, cursor.Set, cursor.Rank, cursor.UpdatedAt, cursor.ID, limit)
+	if e != nil {
+		return nil, safe(e)
+	}
+	defer rows.Close()
+	out := []op.GrantListEntry{}
+	for rows.Next() {
+		var entry op.GrantListEntry
+		var raw []byte
+		var grantedAt, updatedAt time.Time
+		var lastReadAt sql.NullTime
+		if e = rows.Scan(&raw, &grantedAt, &updatedAt, &lastReadAt, &entry.AppState, &entry.CurrentAppRevision, &entry.OwnerClosed); e != nil {
+			return nil, safe(e)
+		}
+		if json.Unmarshal(raw, &entry.Record) != nil {
+			return nil, op.ErrUnavailable
+		}
+		entry.Record.View.GrantedAt = grantedAt.UTC()
+		entry.Record.View.UpdatedAt = updatedAt.UTC()
+		if lastReadAt.Valid {
+			at := lastReadAt.Time.UTC()
+			entry.Record.View.LastDataReadAt = &at
+		}
+		out = append(out, entry)
+	}
+	return out, safe(rows.Err())
+}
 func (t *transaction) SaveGrant(g op.GrantRecord) error {
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	if g.View.GrantedAt.IsZero() {
+		g.View.GrantedAt = now
+	}
+	if g.View.UpdatedAt.IsZero() {
+		g.View.UpdatedAt = g.View.GrantedAt
+	}
 	raw, e := encode(g)
 	if e != nil {
 		return op.ErrUnavailable
 	}
-	updatedAt := g.UpdatedAt
-	if updatedAt.IsZero() {
-		updatedAt = g.View.ExpiresAt
-	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.grants(id,app_id,owner_key,app_revision,state,expires_at,document,updated_at,terminated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(id) DO UPDATE SET app_revision=EXCLUDED.app_revision,state=EXCLUDED.state,expires_at=EXCLUDED.expires_at,document=EXCLUDED.document,updated_at=EXCLUDED.updated_at,terminated_at=EXCLUDED.terminated_at`, g.View.ID, g.View.AppID, g.Owner, g.AppRevision, g.View.State, g.View.ExpiresAt, raw, updatedAt, g.TerminatedAt)
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.grants(id,app_id,owner_key,app_revision,state,expires_at,granted_at,updated_at,document,terminated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(id) DO UPDATE SET app_revision=EXCLUDED.app_revision,state=EXCLUDED.state,expires_at=EXCLUDED.expires_at,updated_at=EXCLUDED.updated_at,document=EXCLUDED.document,terminated_at=EXCLUDED.terminated_at`, g.View.ID, g.View.AppID, g.Owner, g.AppRevision, g.View.State, g.View.ExpiresAt, g.View.GrantedAt, g.View.UpdatedAt, raw, g.TerminatedAt)
+	return safe(e)
+}
+func (t *transaction) TouchGrantRead(id string, at time.Time) error {
+	_, e := t.tx.ExecContext(t.ctx, `UPDATE open_platform.grants SET last_data_read_at=$2 WHERE id=$1 AND (last_data_read_at IS NULL OR last_data_read_at<=$2::timestamptz-interval '1 minute')`, id, at)
 	return safe(e)
 }
 func (t *transaction) Token(h string) (op.TokenRecord, error) {
@@ -402,14 +475,14 @@ func (r *Repository) WorkCandidates(ctx context.Context, now time.Time, limit in
 		UNION
 		(SELECT g.id FROM open_platform.owners d JOIN open_platform.apps a ON a.owner_key=d.owner_key JOIN LATERAL (SELECT g.id FROM open_platform.grants g WHERE g.state='active' AND g.app_id=a.id ORDER BY g.app_revision,g.id LIMIT $2) g ON true WHERE d.closed LIMIT $2)
 	)
-	SELECT g.document FROM open_platform.grants g JOIN (SELECT id FROM candidates ORDER BY id LIMIT $2) c ON c.id=g.id ORDER BY g.id`, now, limit)
+	SELECT g.document,g.granted_at,g.updated_at,g.last_data_read_at FROM open_platform.grants g JOIN (SELECT id FROM candidates ORDER BY id LIMIT $2) c ON c.id=g.id ORDER BY g.id`, now, limit)
 	if e != nil {
 		return nil, safe(e)
 	}
 	defer rows.Close()
 	out := []op.GrantRecord{}
 	for rows.Next() {
-		v, e := decode[op.GrantRecord](rows)
+		v, e := decodeGrant(rows)
 		if e != nil {
 			return nil, e
 		}

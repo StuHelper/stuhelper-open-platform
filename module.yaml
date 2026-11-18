@@ -31,6 +31,8 @@ scenario_tests:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
   OP-02:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
+    - consent_grants_test.go#TestLegacyConsentKeepsDisplayedApprovalRevision
+    - consent_grants_test.go#TestConsentSummaryComparisonAndIncrementalMergeMode
     - projection_test.go#TestAllScopesProjectionsNormalizeNilSlicesFilterInactiveScheduleAndValidateBounds
     - timeouts_and_guards_test.go#TestOutOfTxTimeoutsNilSourceQuotaErrorWhitelistRedirectParamsAndExchangeClientOracle
   OP-03:
@@ -38,6 +40,7 @@ scenario_tests:
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
     - lifecycle_transitions_test.go#TestRevokeAndReconsentStateMachineSuspendedResubmitAckMonotonicityAndTerminationTimestamps
     - locking_performance_test.go#TestNoticesPreventUnauthenticatedAppEnumerationAvoidLockContentionAndEliminateNPlusOneAndFullScan
+    - consent_grants_test.go#TestGrantsLifecycleMetadataFilteringOrderingAndWholeRevoke
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
     - token_protocol_test.go#TestTokenEndpointAcceptsBrowserFormMediaTypeAndMapsTransientErrorsTo503

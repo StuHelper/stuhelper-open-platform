@@ -106,6 +106,31 @@ func difference(a, b []string) []string {
 	}
 	return out
 }
+func intersection(a, b []string) []string {
+	out := []string{}
+	for _, x := range a {
+		if slices.Contains(b, x) && !slices.Contains(out, x) {
+			out = append(out, x)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+func union(a, b []string) []string {
+	out := []string{}
+	for _, x := range a {
+		if !slices.Contains(out, x) {
+			out = append(out, x)
+		}
+	}
+	for _, x := range b {
+		if !slices.Contains(out, x) {
+			out = append(out, x)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
 func (s *Service) activeOwner(t Transaction, owner string) error {
 	if !validOwner(owner) {
 		return ErrUnauthenticated

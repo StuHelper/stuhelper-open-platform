@@ -123,6 +123,9 @@ func (s *Service) Read(ctx context.Context, token, scope string, q Query) (Data,
 			value.Profile = &profile
 		}
 		value.Scope = scope
+		if e = t.TouchGrantRead(grant.View.ID, s.now().Truncate(time.Microsecond)); e != nil {
+			return e
+		}
 		return t.Event(grant.Owner, "data_returned", grant.View.ID, scope, "", s.now())
 	})
 	if e != nil {
