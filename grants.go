@@ -229,7 +229,7 @@ func (s *Service) CloseAccount(ctx context.Context, owner, closureID string) err
 	}
 	return s.transaction(ctx, owner, "", func(t Transaction) error {
 		_, e := replay(t, owner, "closure:"+hash(closureID), "close-account", closureID, s.now(), func() (bool, auditSpec, error) {
-			if e := t.CloseOwner(owner, closureID); e != nil {
+			if e := t.CloseOwner(owner, closureID, s.now()); e != nil {
 				return false, auditSpec{}, e
 			}
 			if e := t.SuspendOwnedApps(owner, s.now().Truncate(time.Microsecond)); e != nil {

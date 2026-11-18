@@ -117,8 +117,8 @@ func (t *transaction) Closed(owner string) (bool, error) {
 	e := t.tx.QueryRowContext(t.ctx, `SELECT COALESCE((SELECT closed FROM open_platform.owners WHERE owner_key=$1),false)`, owner).Scan(&closed)
 	return closed, safe(e)
 }
-func (t *transaction) CloseOwner(owner, id string) error {
-	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.owners VALUES($1,true,$2) ON CONFLICT(owner_key) DO UPDATE SET closed=true WHERE open_platform.owners.closure_id=EXCLUDED.closure_id`, owner, id)
+func (t *transaction) CloseOwner(owner, id string, at time.Time) error {
+	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.owners(owner_key,closed,closure_id,closed_at) VALUES($1,true,$2,$3) ON CONFLICT(owner_key) DO UPDATE SET closed=true WHERE open_platform.owners.closure_id=EXCLUDED.closure_id`, owner, id, at)
 	if e != nil {
 		return safe(e)
 	}
@@ -279,6 +279,13 @@ func (t *transaction) SaveApp(a op.AppRecord) error {
 	updatedAt := a.UpdatedAt
 	if updatedAt.IsZero() {
 		updatedAt = a.View.CreatedAt
+	}
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.invalid_revisions(app_id,revision,invalidated_at)
+        SELECT a.id,a.revision,$4 FROM open_platform.apps a WHERE a.id=$1 AND (a.revision,a.state) IS DISTINCT FROM ($2,$3)
+        AND EXISTS (SELECT 1 FROM open_platform.grants g WHERE g.app_id=a.id AND g.app_revision=a.revision AND g.state='active')
+        ON CONFLICT DO NOTHING`, a.View.ID, a.View.Revision, a.View.State, updatedAt)
+	if e != nil {
+		return safe(e)
 	}
 	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps(id,owner_key,state,revision,secret_hash,document,updated_at,terminated_at,reviewed_by,reviewed_at,archived_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(id) DO UPDATE SET revision_work_pending=open_platform.apps.revision_work_pending OR ((open_platform.apps.revision,open_platform.apps.state) IS DISTINCT FROM (EXCLUDED.revision,EXCLUDED.state) AND EXISTS (SELECT 1 FROM open_platform.grants g WHERE g.app_id=EXCLUDED.id AND g.state='active')),state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,document=EXCLUDED.document,updated_at=EXCLUDED.updated_at,terminated_at=EXCLUDED.terminated_at,reviewed_by=EXCLUDED.reviewed_by,reviewed_at=EXCLUDED.reviewed_at,archived_at=EXCLUDED.archived_at`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, raw, updatedAt, a.TerminatedAt, a.ReviewedBy, a.ReviewedAt, a.View.ArchivedAt)
 	return safe(e)
@@ -587,6 +594,11 @@ func (r *Repository) WorkCandidates(ctx context.Context, now time.Time, limit in
         UPDATE open_platform.apps a SET revision_work_pending=false FROM pending p
         WHERE a.id=p.id AND a.revision=p.revision AND a.state=p.state
           AND NOT EXISTS (SELECT 1 FROM invalid i WHERE i.app_id=p.id)
+    ), cleared_revisions AS (
+        DELETE FROM open_platform.invalid_revisions WHERE (app_id,revision) IN (
+            SELECT i.app_id,i.revision FROM open_platform.invalid_revisions i
+            WHERE NOT EXISTS (SELECT 1 FROM open_platform.grants g WHERE g.state='active' AND g.app_id=i.app_id AND g.app_revision=i.revision)
+            LIMIT $2)
     ), candidates AS (
         (SELECT g.id FROM open_platform.grants g WHERE g.state='active' AND g.expires_at<=$1 ORDER BY g.expires_at,g.id LIMIT $2)
         UNION

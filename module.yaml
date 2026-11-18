@@ -66,5 +66,7 @@ scenario_tests:
     - repair_test.go#TestQQTiersRequireIndependentApprovalConsentAndTrustedSource
     - projection_test.go#TestQQProjectionNeverLeaksNumberForStatus
   RET-05:
+    - backlog_test.go#TestBacklogUsesCleanupCalendarOnLeapDay
     - repair_test.go#TestCleanupIsBoundedPreservesLiveDataAndRollsBackFailures
     - governance_test.go#TestQuotaHeadersPendingAckOverdueInspectionAndArchiveRetention
+    - backlog_test.go#TestBacklogObservesPendingNoticesAndRetentionLag

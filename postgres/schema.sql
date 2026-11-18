@@ -58,6 +58,7 @@ CREATE INDEX IF NOT EXISTS tokens_consent ON open_platform.tokens((document->>'C
 CREATE INDEX IF NOT EXISTS consents_expiry ON open_platform.consents(expires_at,id);
 CREATE INDEX IF NOT EXISTS events_expiry ON open_platform.events(created_at,id);
 CREATE INDEX IF NOT EXISTS notices_expiry ON open_platform.notices(created_at,id);
+CREATE INDEX IF NOT EXISTS quotas_day ON open_platform.quotas(day,app_id);
 
 
 CREATE TABLE IF NOT EXISTS open_platform.audit_retention(singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton), revision bigint NOT NULL DEFAULT 0);
@@ -73,3 +74,23 @@ CREATE OR REPLACE TRIGGER audit_invalidate_update AFTER UPDATE ON open_platform.
 CREATE OR REPLACE TRIGGER audit_invalidate_delete AFTER DELETE ON open_platform.events REFERENCING OLD TABLE AS affected_rows FOR EACH STATEMENT EXECUTE FUNCTION open_platform.audit_invalidate_rows();
 CREATE OR REPLACE TRIGGER audit_invalidate_truncate AFTER TRUNCATE ON open_platform.events FOR EACH STATEMENT EXECUTE FUNCTION open_platform.audit_invalidate();
 CREATE INDEX IF NOT EXISTS audit_query_order ON open_platform.events(audit_time DESC,(id::text) COLLATE "C" DESC);
+
+ALTER TABLE open_platform.owners ADD COLUMN IF NOT EXISTS closed_at timestamptz;
+UPDATE open_platform.owners u SET closed_at=COALESCE(
+  (SELECT min(created_at) FROM open_platform.events e WHERE e.actor=u.owner_key AND e.kind='account_closed'),now())
+WHERE u.closed AND u.closed_at IS NULL;
+CREATE INDEX IF NOT EXISTS owners_closed_at ON open_platform.owners(closed_at,owner_key) WHERE closed;
+
+DO $$ BEGIN
+  IF to_regclass('open_platform.invalid_revisions') IS NULL THEN
+    CREATE TABLE open_platform.invalid_revisions(
+      app_id text NOT NULL REFERENCES open_platform.apps(id) ON DELETE CASCADE,
+      revision bigint NOT NULL,invalidated_at timestamptz NOT NULL,PRIMARY KEY(app_id,revision)
+    );
+    INSERT INTO open_platform.invalid_revisions
+      SELECT DISTINCT g.app_id,g.app_revision,coalesce(a.terminated_at,a.updated_at)
+      FROM open_platform.grants g JOIN open_platform.apps a ON a.id=g.app_id
+      WHERE g.state='active' AND (a.state<>'active' OR a.revision<>g.app_revision);
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS invalid_revisions_time ON open_platform.invalid_revisions(invalidated_at,app_id,revision);
