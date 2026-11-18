@@ -18,7 +18,7 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 	}
 	var e error
 	in.Scopes, e = validateScopes(in.Scopes, false)
-	if e != nil || in.Method != "S256" || len(in.Challenge) != 43 || len(in.State) < 16 || len(in.State) > 512 || !validText(in.State, 512, false) {
+	if e != nil || !validToken(in.ClientID, 64) || !validToken(in.RedirectURI, 2048) || in.Method != "S256" || len(in.Challenge) != 43 || len(in.State) < 16 || len(in.State) > 512 || !validLine(in.State, 512, false) {
 		return out, ErrInput
 	}
 	b, e := base64.RawURLEncoding.DecodeString(in.Challenge)
@@ -30,29 +30,29 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 			return e
 		}
 		var e error
-		out, e = replay(t, p.Owner, key, "prepare-consent", in, func() (Consent, error) {
+		out, e = replay(t, p.Owner, key, "prepare-consent", in, s.now(), func() (Consent, auditSpec, error) {
 			pending, e := t.PendingConsents(p.Owner, s.now())
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			if pending >= 100 {
-				return out, ErrConflict
+				return out, auditSpec{}, ErrConflict
 			}
 			a, e := s.validApp(t, in.ClientID)
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			if !slices.Contains(a.View.RedirectURIs, in.RedirectURI) || !subset(in.Scopes, a.View.ApprovedScopes) {
-				return out, ErrForbidden
+				return out, auditSpec{}, ErrForbidden
 			}
 			id, e := s.random()
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			out = Consent{QQTiers: qqTiers(in.Scopes), ID: id, Application: a.View, Scopes: in.Scopes, RedirectURI: in.RedirectURI, ExpiresAt: s.now().Add(5 * time.Minute)}
 			out.Application.Note = ""
 			e = t.SaveConsent(ConsentRecord{View: out, Owner: p.Owner, Input: in})
-			return out, e
+			return out, auditSpec{actor: p.Owner, action: "consent_prepared", target: id}, e
 		})
 		return e
 	})
@@ -60,6 +60,12 @@ func (s *Service) PrepareConsent(ctx context.Context, p Principal, key string, i
 }
 func (s *Service) Consent(ctx context.Context, p Principal, id string) (Consent, error) {
 	var out Consent
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !validID(id) {
+		return out, ErrInput
+	}
 	e := s.sharedTransaction(ctx, p.Owner, "", func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
@@ -89,38 +95,40 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 	}
 	var e error
 	in.Scopes, e = validateScopes(in.Scopes, in.Decision == "deny")
-	if e != nil || (in.Decision != "approve" && in.Decision != "deny") || (in.Decision == "deny" && len(in.Scopes) != 0) {
+	if e != nil || !validID(id) || (in.Decision != "approve" && in.Decision != "deny") || (in.Decision == "deny" && len(in.Scopes) != 0) {
 		return out, ErrInput
 	}
-	located, e := s.Repo.LocateConsent(ctx, id)
+	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	located, e := s.Repo.LocateConsent(dbCtx, id)
 	if e != nil {
 		return out, e
 	}
 	if located.Owner != p.Owner {
 		return out, ErrNotFound
 	}
-	e = s.sharedTransaction(ctx, p.Owner, located.Input.ClientID, func(t Transaction) error {
+	e = s.sharedTransaction(dbCtx, p.Owner, located.Input.ClientID, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
 		var e error
-		out, e = replay(t, p.Owner, key, "decide-consent:"+id, in, func() (AuthorizationResult, error) {
+		out, e = replay(t, p.Owner, key, "decide-consent:"+id, in, s.now(), func() (AuthorizationResult, auditSpec, error) {
 			c, e := t.Consent(id)
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			if c.Decision != "" || !s.now().Before(c.View.ExpiresAt) {
-				return out, ErrConflict
+				return out, auditSpec{}, ErrConflict
 			}
 			a, e := s.validApp(t, c.Input.ClientID)
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			if a.View.Revision != c.View.Application.Revision {
-				return out, ErrConflict
+				return out, auditSpec{}, ErrConflict
 			}
 			if !subset(in.Scopes, c.Input.Scopes) || !subset(in.Scopes, a.View.ApprovedScopes) {
-				return out, ErrForbidden
+				return out, auditSpec{}, ErrForbidden
 			}
 			u, _ := url.Parse(c.Input.RedirectURI)
 			q := u.Query()
@@ -133,43 +141,47 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 			} else {
 				g, e := t.OwnerGrant(p.Owner, a.View.ID)
 				if e != nil && !errors.Is(e, ErrNotFound) {
-					return out, e
+					return out, auditSpec{}, e
 				}
 				if errors.Is(e, ErrNotFound) {
 					gid, e := s.random()
 					if e != nil {
-						return out, e
+						return out, auditSpec{}, e
 					}
 					subject, e := s.random()
 					if e != nil {
-						return out, e
+						return out, auditSpec{}, e
 					}
 					g = GrantRecord{Owner: p.Owner, View: Grant{ID: gid, AppID: a.View.ID, Subject: subject}}
 				} else if g.View.State == "active" {
 					reason, e := s.grantReason(t, g, a)
 					if e != nil {
-						return out, e
+						return out, auditSpec{}, e
 					}
 					removed := difference(g.View.Scopes, in.Scopes)
-					if reason != "" {
+					if a.View.Revision != g.AppRevision {
+						reason = "application_changed"
 						removed = g.View.Scopes
-					} else {
+					} else if reason == "" {
 						reason = "consent_changed"
 					}
 					if len(removed) > 0 {
 						if e = s.notice(t, g, removed, reason); e != nil {
-							return out, e
+							return out, auditSpec{}, e
 						}
 					}
 				}
+				now := s.now()
 				g.View.AppName = a.View.Name
 				g.View.Scopes = in.Scopes
 				g.View.State = "active"
 				g.View.Revision++
 				g.AppRevision = a.View.Revision
-				g.View.ExpiresAt = s.now().Add(time.Duration(a.View.Policy.GrantSeconds) * time.Second)
+				g.View.ExpiresAt = now.Add(time.Duration(a.View.Policy.GrantSeconds) * time.Second)
+				g.UpdatedAt = now
+				g.TerminatedAt = nil
 				if e = t.SaveGrant(g); e != nil {
-					return out, e
+					return out, auditSpec{}, e
 				}
 				c.GrantID = g.View.ID
 				c.GrantRevision = g.View.Revision
@@ -177,10 +189,10 @@ func (s *Service) Decide(ctx context.Context, p Principal, id, key string, in Co
 				c.CodeExpiresAt = s.now().Add(time.Minute)
 			}
 			if e = t.SaveConsent(c); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			u.RawQuery = q.Encode()
-			return AuthorizationResult{RedirectURI: u.String()}, nil
+			return AuthorizationResult{RedirectURI: u.String()}, auditSpec{actor: p.Owner, action: "consent_decided", target: id, reason: in.Decision}, nil
 		})
 		if e != nil {
 			return e
@@ -220,20 +232,25 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 	if e := s.ready(); e != nil {
 		return out, e
 	}
-	if in.GrantType != "authorization_code" || len(in.Code) > 160 || !validVerifier(in.Verifier) {
+	if in.GrantType != "authorization_code" || !validToken(in.ClientID, 64) || !validToken(in.RedirectURI, 2048) || !validToken(in.Code, 160) || (in.ClientSecret != "" && !validToken(in.ClientSecret, 256)) || !validVerifier(in.Verifier) {
 		return out, ErrInput
 	}
-	located, e := s.Repo.LocateCode(ctx, hash(in.Code))
+	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	located, e := s.Repo.LocateCode(dbCtx, hash(in.Code))
 	if e != nil {
 		return out, lookupError(e)
 	}
-	e = s.sharedTransaction(ctx, located.Owner, located.Input.ClientID, func(t Transaction) error {
+	e = s.sharedTransaction(dbCtx, located.Owner, located.Input.ClientID, func(t Transaction) error {
 		if e := s.activeOwner(t, located.Owner); e != nil {
 			return e
 		}
 		c, e := t.Consent(located.View.ID)
 		if e != nil {
 			return lookupError(e)
+		}
+		if c.Input.ClientID != in.ClientID {
+			return ErrUnauthenticated
 		}
 		a, e := s.validApp(t, c.Input.ClientID)
 		if e != nil {
@@ -246,11 +263,14 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 			return ErrInput
 		}
 		challenge := sha256.Sum256([]byte(in.Verifier))
-		if c.Decision != "approve" || c.Input.ClientID != in.ClientID || c.Input.RedirectURI != in.RedirectURI || a.View.Revision != c.View.Application.Revision || base64.RawURLEncoding.EncodeToString(challenge[:]) != c.Input.Challenge {
+		if c.Decision != "approve" || c.Input.RedirectURI != in.RedirectURI || a.View.Revision != c.View.Application.Revision || base64.RawURLEncoding.EncodeToString(challenge[:]) != c.Input.Challenge {
 			return ErrUnauthenticated
 		}
 		if c.Consumed {
 			if e := t.RevokeCodeTokens(c.View.ID, c.GrantID); e != nil {
+				return e
+			}
+			if e := t.Event("app:"+c.Input.ClientID, "code_replay_revoked", c.GrantID, c.View.ID, "authorization_code_replayed", s.now()); e != nil {
 				return e
 			}
 			replayed = true
@@ -286,7 +306,7 @@ func (s *Service) Exchange(ctx context.Context, in TokenInput) (Token, error) {
 		if e = t.SaveConsent(c); e != nil {
 			return e
 		}
-		if e = t.Event(g.Owner, "token_issued", g.View.ID, c.View.ID); e != nil {
+		if e = t.Event(g.Owner, "token_issued", g.View.ID, c.View.ID, "", s.now()); e != nil {
 			return e
 		}
 		out = Token{AccessToken: token, TokenType: "Bearer", ExpiresIn: int64(expires.Sub(s.now()).Seconds()), Scope: strings.Join(g.View.Scopes, " "), Subject: g.View.Subject}

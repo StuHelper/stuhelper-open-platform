@@ -52,6 +52,8 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	return tx.Commit()
 }
 func (r *Repository) Ready(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	var ok bool
 	e := r.DB.QueryRowContext(ctx, `SELECT to_regclass('open_platform.apps') IS NOT NULL AND to_regclass('open_platform.notices') IS NOT NULL`).Scan(&ok)
 	if e != nil || !ok {
@@ -60,6 +62,8 @@ func (r *Repository) Ready(ctx context.Context) error {
 	return nil
 }
 func (r *Repository) CheckRuntime(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	var unsafe bool
 	e := r.DB.QueryRowContext(ctx, `SELECT rolsuper OR rolcreatedb OR rolcreaterole OR rolbypassrls OR has_schema_privilege(current_user,'open_platform','CREATE') OR has_table_privilege(current_user,'open_platform.events','UPDATE') OR has_table_privilege(current_user,'open_platform.requests','UPDATE') OR has_table_privilege(current_user,'open_platform.tokens','UPDATE') FROM pg_roles WHERE rolname=current_user`).Scan(&unsafe)
 	if e != nil || unsafe {
@@ -142,9 +146,14 @@ func (r *Repository) LocateApp(ctx context.Context, id string) (op.AppRecord, er
 func (t *transaction) App(id string) (op.AppRecord, error) {
 	var out op.AppRecord
 	var raw []byte
-	e := t.tx.QueryRowContext(t.ctx, `SELECT owner_key,secret_hash,document FROM open_platform.apps WHERE id=$1`, id).Scan(&out.Owner, &out.SecretHash, &raw)
+	var terminated sql.NullTime
+	e := t.tx.QueryRowContext(t.ctx, `SELECT owner_key,secret_hash,document,updated_at,terminated_at FROM open_platform.apps WHERE id=$1`, id).Scan(&out.Owner, &out.SecretHash, &raw, &out.UpdatedAt, &terminated)
 	if e != nil {
 		return out, safe(e)
+	}
+	if terminated.Valid {
+		ts := terminated.Time.UTC()
+		out.TerminatedAt = &ts
 	}
 	if json.Unmarshal(raw, &out.View) != nil {
 		return out, op.ErrUnavailable
@@ -152,7 +161,7 @@ func (t *transaction) App(id string) (op.AppRecord, error) {
 	return out, nil
 }
 func (t *transaction) Apps(owner string, admin bool, after string, limit int) ([]op.AppRecord, error) {
-	rows, e := t.tx.QueryContext(t.ctx, `SELECT owner_key,secret_hash,document FROM open_platform.apps WHERE ($2 OR owner_key=$1) AND id>$3 ORDER BY id LIMIT $4`, owner, admin, after, limit)
+	rows, e := t.tx.QueryContext(t.ctx, `SELECT owner_key,secret_hash,document,updated_at,terminated_at FROM open_platform.apps WHERE ($2 OR owner_key=$1) AND id>$3 ORDER BY id LIMIT $4`, owner, admin, after, limit)
 	if e != nil {
 		return nil, safe(e)
 	}
@@ -161,8 +170,13 @@ func (t *transaction) Apps(owner string, admin bool, after string, limit int) ([
 	for rows.Next() {
 		var a op.AppRecord
 		var b []byte
-		if e = rows.Scan(&a.Owner, &a.SecretHash, &b); e != nil {
+		var terminated sql.NullTime
+		if e = rows.Scan(&a.Owner, &a.SecretHash, &b, &a.UpdatedAt, &terminated); e != nil {
 			return nil, safe(e)
+		}
+		if terminated.Valid {
+			ts := terminated.Time.UTC()
+			a.TerminatedAt = &ts
 		}
 		if json.Unmarshal(b, &a.View) != nil {
 			return nil, op.ErrUnavailable
@@ -176,7 +190,11 @@ func (t *transaction) SaveApp(a op.AppRecord) error {
 	if e != nil {
 		return op.ErrUnavailable
 	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,document=EXCLUDED.document`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, raw)
+	updatedAt := a.UpdatedAt
+	if updatedAt.IsZero() {
+		updatedAt = a.View.CreatedAt
+	}
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps(id,owner_key,state,revision,secret_hash,document,updated_at,terminated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO UPDATE SET revision_work_pending=open_platform.apps.revision_work_pending OR ((open_platform.apps.revision,open_platform.apps.state) IS DISTINCT FROM (EXCLUDED.revision,EXCLUDED.state) AND EXISTS (SELECT 1 FROM open_platform.grants g WHERE g.app_id=EXCLUDED.id AND g.state='active')),state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,document=EXCLUDED.document,updated_at=EXCLUDED.updated_at,terminated_at=EXCLUDED.terminated_at`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, raw, updatedAt, a.TerminatedAt)
 	return safe(e)
 }
 func (t *transaction) CountApps(owner string) (int, error) {
@@ -184,7 +202,7 @@ func (t *transaction) CountApps(owner string) (int, error) {
 	e := t.tx.QueryRowContext(t.ctx, `SELECT count(*) FROM open_platform.apps WHERE owner_key=$1`, owner).Scan(&n)
 	return n, safe(e)
 }
-func (t *transaction) SuspendOwnedApps(owner string) error {
+func (t *transaction) SuspendOwnedApps(owner string, at time.Time) error {
 	// Application creation is bounded at 100 per owner. Row locks serialize the epoch bump with administrator decisions.
 	rows, e := t.Apps(owner, false, "", 101)
 	if e != nil {
@@ -201,9 +219,12 @@ func (t *transaction) SuspendOwnedApps(owner string) error {
 		if e != nil {
 			return e
 		}
+		ts := at.UTC()
 		a.View.State = "suspended"
 		a.View.Revision++
 		a.View.Note = "owner_account_closed"
+		a.UpdatedAt = ts
+		a.TerminatedAt = &ts
 		if e = t.SaveApp(a); e != nil {
 			return e
 		}
@@ -222,9 +243,13 @@ func (t *transaction) SaveConsent(c op.ConsentRecord) error {
 	return safe(e)
 }
 func (r *Repository) LocateConsent(ctx context.Context, id string) (op.ConsentRecord, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	return decode[op.ConsentRecord](r.DB.QueryRowContext(ctx, `SELECT document FROM open_platform.consents WHERE id=$1`, id))
 }
 func (r *Repository) LocateCode(ctx context.Context, h string) (op.ConsentRecord, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	return decode[op.ConsentRecord](r.DB.QueryRowContext(ctx, `SELECT document FROM open_platform.consents WHERE code_hash=$1`, h))
 }
 func (t *transaction) Grant(id string) (op.GrantRecord, error) {
@@ -234,6 +259,8 @@ func (t *transaction) OwnerGrant(owner, app string) (op.GrantRecord, error) {
 	return decode[op.GrantRecord](t.tx.QueryRowContext(t.ctx, `SELECT document FROM open_platform.grants WHERE owner_key=$1 AND app_id=$2`, owner, app))
 }
 func (r *Repository) LocateGrant(ctx context.Context, id string) (op.GrantRecord, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	return decode[op.GrantRecord](r.DB.QueryRowContext(ctx, `SELECT document FROM open_platform.grants WHERE id=$1`, id))
 }
 func (t *transaction) Grants(owner, after string, limit int) ([]op.GrantSummary, error) {
@@ -261,7 +288,11 @@ func (t *transaction) SaveGrant(g op.GrantRecord) error {
 	if e != nil {
 		return op.ErrUnavailable
 	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.grants VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO UPDATE SET app_revision=EXCLUDED.app_revision,state=EXCLUDED.state,expires_at=EXCLUDED.expires_at,document=EXCLUDED.document`, g.View.ID, g.View.AppID, g.Owner, g.AppRevision, g.View.State, g.View.ExpiresAt, raw)
+	updatedAt := g.UpdatedAt
+	if updatedAt.IsZero() {
+		updatedAt = g.View.ExpiresAt
+	}
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.grants(id,app_id,owner_key,app_revision,state,expires_at,document,updated_at,terminated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(id) DO UPDATE SET app_revision=EXCLUDED.app_revision,state=EXCLUDED.state,expires_at=EXCLUDED.expires_at,document=EXCLUDED.document,updated_at=EXCLUDED.updated_at,terminated_at=EXCLUDED.terminated_at`, g.View.ID, g.View.AppID, g.Owner, g.AppRevision, g.View.State, g.View.ExpiresAt, raw, updatedAt, g.TerminatedAt)
 	return safe(e)
 }
 func (t *transaction) Token(h string) (op.TokenRecord, error) {
@@ -276,6 +307,8 @@ func (t *transaction) SaveToken(v op.TokenRecord) error {
 	return safe(e)
 }
 func (r *Repository) LocateToken(ctx context.Context, h string) (op.TokenRecord, op.GrantRecord, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	v, e := decode[op.TokenRecord](r.DB.QueryRowContext(ctx, `SELECT document FROM open_platform.tokens WHERE hash=$1`, h))
 	if e != nil {
 		return v, op.GrantRecord{}, e
@@ -335,27 +368,37 @@ func (t *transaction) Replay(actor, key string) (string, json.RawMessage, error)
 	e := t.tx.QueryRowContext(t.ctx, `SELECT digest,result FROM open_platform.requests WHERE actor=$1 AND key=$2`, actor, key).Scan(&h, &b)
 	return h, b, safe(e)
 }
-func (t *transaction) SaveReplay(actor, key, digest string, result json.RawMessage) error {
-	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.requests(actor,key,digest,result) VALUES($1,$2,$3,$4)`, actor, key, digest, string(result))
+func (t *transaction) SaveReplay(actor, key, digest string, result json.RawMessage, at time.Time) error {
+	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.requests(actor,key,digest,result,created_at) VALUES($1,$2,$3,$4,$5)`, actor, key, digest, string(result), at)
 	return safe(e)
 }
-func (t *transaction) Event(actor, kind, object, key string) error {
-	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.events(actor,kind,object_id,operation,result) VALUES($1,$2,$3,$4,'success')`, actor, kind, object, key)
+func (t *transaction) Event(actor, kind, object, key, reason string, at time.Time) error {
+	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.events(actor,kind,object_id,operation,reason,result,created_at) VALUES($1,$2,$3,$4,$5,'success',$6)`, actor, kind, object, key, reason, at)
 	return safe(e)
 }
 func (r *Repository) WorkCandidates(ctx context.Context, now time.Time, limit int) ([]op.GrantRecord, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	rows, e := r.DB.QueryContext(ctx, `WITH candidates AS (
-		(SELECT g.id FROM open_platform.grants g WHERE g.state='active' AND g.expires_at<=$1 ORDER BY g.expires_at,g.id LIMIT $2)
-		UNION
-		(SELECT g.id FROM open_platform.apps a JOIN LATERAL (SELECT g.id FROM open_platform.grants g WHERE g.state='active' AND g.app_id=a.id ORDER BY g.app_revision,g.id LIMIT $2) g ON true WHERE a.state<>'active' LIMIT $2)
-		UNION
-		(SELECT g.id FROM open_platform.apps a JOIN LATERAL (SELECT g.id FROM open_platform.grants g WHERE g.state='active' AND g.app_id=a.id AND g.app_revision<a.revision ORDER BY g.app_revision,g.id LIMIT $2) g ON true WHERE a.state='active' AND a.revision>1 LIMIT $2)
-		UNION
-		(SELECT g.id FROM open_platform.apps a JOIN LATERAL (SELECT g.id FROM open_platform.grants g WHERE g.state='active' AND g.app_id=a.id AND g.app_revision>a.revision ORDER BY g.app_revision DESC,g.id LIMIT $2) g ON true WHERE a.state='active' LIMIT $2)
-		UNION
-		(SELECT g.id FROM open_platform.owners u JOIN LATERAL (SELECT g.id FROM open_platform.grants g WHERE g.state='active' AND g.owner_key=u.owner_key ORDER BY g.id LIMIT $2) g ON true WHERE u.closed LIMIT $2)
+	rows, e := r.DB.QueryContext(ctx, `WITH pending AS MATERIALIZED (
+        SELECT id,revision,state FROM open_platform.apps WHERE revision_work_pending ORDER BY id LIMIT $2
+    ), invalid AS MATERIALIZED (
+        SELECT a.id AS app_id, stale.id FROM pending a CROSS JOIN LATERAL (
+            (SELECT id FROM open_platform.grants WHERE app_id=a.id AND state='active' AND a.state<>'active' ORDER BY app_revision,id LIMIT $2)
+            UNION ALL
+            (SELECT id FROM open_platform.grants WHERE app_id=a.id AND state='active' AND a.state='active' AND app_revision<a.revision ORDER BY app_revision,id LIMIT $2)
+            UNION ALL
+            (SELECT id FROM open_platform.grants WHERE app_id=a.id AND state='active' AND a.state='active' AND app_revision>a.revision ORDER BY app_revision DESC,id LIMIT $2)
+        ) stale
+    ), drained AS (
+        UPDATE open_platform.apps a SET revision_work_pending=false FROM pending p
+        WHERE a.id=p.id AND a.revision=p.revision AND a.state=p.state
+          AND NOT EXISTS (SELECT 1 FROM invalid i WHERE i.app_id=p.id)
+    ), candidates AS (
+        (SELECT g.id FROM open_platform.grants g WHERE g.state='active' AND g.expires_at<=$1 ORDER BY g.expires_at,g.id LIMIT $2)
+        UNION
+        (SELECT id FROM invalid LIMIT $2)
+        UNION
+        (SELECT g.id FROM open_platform.owners u JOIN LATERAL (SELECT g.id FROM open_platform.grants g WHERE g.state='active' AND g.owner_key=u.owner_key ORDER BY g.id LIMIT $2) g ON true WHERE u.closed LIMIT $2)
 		UNION
 		(SELECT g.id FROM open_platform.owners d JOIN open_platform.apps a ON a.owner_key=d.owner_key JOIN LATERAL (SELECT g.id FROM open_platform.grants g WHERE g.state='active' AND g.app_id=a.id ORDER BY g.app_revision,g.id LIMIT $2) g ON true WHERE d.closed LIMIT $2)
 	)

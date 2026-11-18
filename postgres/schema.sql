@@ -2,15 +2,27 @@ CREATE SCHEMA IF NOT EXISTS open_platform;
 REVOKE ALL ON SCHEMA open_platform FROM PUBLIC;
 CREATE TABLE IF NOT EXISTS open_platform.owners(owner_key text PRIMARY KEY, closed boolean NOT NULL DEFAULT false, closure_id text NOT NULL DEFAULT '');
 CREATE INDEX IF NOT EXISTS owners_closed ON open_platform.owners(owner_key) WHERE closed;
-CREATE TABLE IF NOT EXISTS open_platform.apps(id text PRIMARY KEY,owner_key text NOT NULL,state text NOT NULL,revision bigint NOT NULL,secret_hash text NOT NULL,document jsonb NOT NULL);
+CREATE TABLE IF NOT EXISTS open_platform.apps(id text PRIMARY KEY,owner_key text NOT NULL,state text NOT NULL,revision bigint NOT NULL,secret_hash text NOT NULL,document jsonb NOT NULL,updated_at timestamptz NOT NULL DEFAULT now(),terminated_at timestamptz);
+ALTER TABLE open_platform.apps ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS terminated_at timestamptz;
 CREATE INDEX IF NOT EXISTS apps_owner ON open_platform.apps(owner_key,id);
-CREATE INDEX IF NOT EXISTS apps_inactive ON open_platform.apps(id) WHERE state<>'active';
-CREATE INDEX IF NOT EXISTS apps_revised ON open_platform.apps(id,revision) WHERE state='active' AND revision>1;
-CREATE TABLE IF NOT EXISTS open_platform.grants(id text PRIMARY KEY,app_id text NOT NULL REFERENCES open_platform.apps(id),owner_key text NOT NULL,app_revision bigint NOT NULL,state text NOT NULL,expires_at timestamptz NOT NULL,document jsonb NOT NULL,UNIQUE(app_id,owner_key));
+CREATE INDEX IF NOT EXISTS apps_terminated ON open_platform.apps(terminated_at,id) WHERE terminated_at IS NOT NULL;
+CREATE TABLE IF NOT EXISTS open_platform.grants(id text PRIMARY KEY,app_id text NOT NULL REFERENCES open_platform.apps(id),owner_key text NOT NULL,app_revision bigint NOT NULL,state text NOT NULL,expires_at timestamptz NOT NULL,document jsonb NOT NULL,updated_at timestamptz NOT NULL DEFAULT now(),terminated_at timestamptz,UNIQUE(app_id,owner_key));
+ALTER TABLE open_platform.grants ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS terminated_at timestamptz;
 CREATE INDEX IF NOT EXISTS grants_owner ON open_platform.grants(owner_key,id);
 CREATE INDEX IF NOT EXISTS grants_active_owner ON open_platform.grants(owner_key,id) WHERE state='active';
 CREATE INDEX IF NOT EXISTS grants_expiry ON open_platform.grants(expires_at,id) WHERE state='active';
 CREATE INDEX IF NOT EXISTS grants_app_revision ON open_platform.grants(app_id,app_revision,id) WHERE state='active';
+-- Existing grants can already be stale when this migration first runs.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='open_platform' AND table_name='apps' AND column_name='revision_work_pending') THEN
+    ALTER TABLE open_platform.apps ADD COLUMN revision_work_pending boolean NOT NULL DEFAULT false;
+    UPDATE open_platform.apps a SET revision_work_pending=true WHERE EXISTS (
+      SELECT 1 FROM open_platform.grants g WHERE g.app_id=a.id AND g.state='active' AND (a.state<>'active' OR g.app_revision<>a.revision)
+    );
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS apps_pending_work ON open_platform.apps(id) WHERE revision_work_pending;
+CREATE INDEX IF NOT EXISTS grants_terminated ON open_platform.grants(terminated_at,id) WHERE terminated_at IS NOT NULL;
 CREATE TABLE IF NOT EXISTS open_platform.consents(id text PRIMARY KEY,owner_key text NOT NULL,app_id text NOT NULL REFERENCES open_platform.apps(id),code_hash text UNIQUE,expires_at timestamptz NOT NULL,document jsonb NOT NULL);
 CREATE TABLE IF NOT EXISTS open_platform.tokens(hash text PRIMARY KEY,grant_id text NOT NULL REFERENCES open_platform.grants(id),expires_at timestamptz NOT NULL,document jsonb NOT NULL);
 CREATE TABLE IF NOT EXISTS open_platform.quotas(app_id text NOT NULL REFERENCES open_platform.apps(id),day text NOT NULL,used integer NOT NULL,PRIMARY KEY(app_id,day));
@@ -38,5 +50,10 @@ CREATE OR REPLACE FUNCTION open_platform.audit_project() RETURNS trigger LANGUAG
 CREATE OR REPLACE TRIGGER audit_project BEFORE INSERT OR UPDATE ON open_platform.events FOR EACH ROW EXECUTE FUNCTION open_platform.audit_project();
 CREATE OR REPLACE FUNCTION open_platform.audit_invalidate() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$ BEGIN UPDATE open_platform.audit_retention SET revision=revision+1 WHERE singleton; RETURN NULL; END $$;
 REVOKE ALL ON FUNCTION open_platform.audit_invalidate() FROM PUBLIC;
-CREATE OR REPLACE TRIGGER audit_invalidate AFTER UPDATE OR DELETE OR TRUNCATE ON open_platform.events FOR EACH STATEMENT EXECUTE FUNCTION open_platform.audit_invalidate();
+CREATE OR REPLACE FUNCTION open_platform.audit_invalidate_rows() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$ BEGIN IF EXISTS (SELECT 1 FROM affected_rows) THEN UPDATE open_platform.audit_retention SET revision=revision+1 WHERE singleton; END IF; RETURN NULL; END $$;
+REVOKE ALL ON FUNCTION open_platform.audit_invalidate_rows() FROM PUBLIC;
+DROP TRIGGER IF EXISTS audit_invalidate ON open_platform.events;
+CREATE OR REPLACE TRIGGER audit_invalidate_update AFTER UPDATE ON open_platform.events REFERENCING OLD TABLE AS affected_rows FOR EACH STATEMENT EXECUTE FUNCTION open_platform.audit_invalidate_rows();
+CREATE OR REPLACE TRIGGER audit_invalidate_delete AFTER DELETE ON open_platform.events REFERENCING OLD TABLE AS affected_rows FOR EACH STATEMENT EXECUTE FUNCTION open_platform.audit_invalidate_rows();
+CREATE OR REPLACE TRIGGER audit_invalidate_truncate AFTER TRUNCATE ON open_platform.events FOR EACH STATEMENT EXECUTE FUNCTION open_platform.audit_invalidate();
 CREATE INDEX IF NOT EXISTS audit_query_order ON open_platform.events(audit_time DESC,(id::text) COLLATE "C" DESC);

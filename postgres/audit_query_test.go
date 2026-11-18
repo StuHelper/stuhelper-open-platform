@@ -171,6 +171,15 @@ func TestPublicAuditQuery(t *testing.T) {
 	}
 	q.Scopes = []a.Scope{{School: "*", Group: "*", Module: "open-platform"}}
 	q.Snapshot = page.Snapshot
+	if _, e = db.Exec(`DELETE FROM open_platform.events WHERE false`); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec(`UPDATE open_platform.events SET reason=reason WHERE false`); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = repo.ReadAudit(ctx, q); e != nil {
+		t.Fatal("zero-row delete or update invalidated snapshot:", e)
+	}
 	if _, e = db.Exec(`UPDATE open_platform.events SET reason='reviewed',result='success'`); e != nil {
 		t.Fatal(e)
 	}

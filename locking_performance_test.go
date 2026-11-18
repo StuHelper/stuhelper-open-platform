@@ -169,6 +169,10 @@ func TestNoticesPreventUnauthenticatedAppEnumerationAvoidLockContentionAndElimin
 		FROM generate_series(1, 1500) n`, app.ID, app.Revision, future); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := x.db.Exec(`INSERT INTO open_platform.apps(id,owner_key,state,revision,secret_hash,document)
+        SELECT 'idle-app-'||n,'idle-owner-'||n,'active',3,'','{}'::jsonb FROM generate_series(1,1500) n`); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := x.db.Exec(`ANALYZE open_platform.grants, open_platform.apps, open_platform.owners`); err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +180,7 @@ func TestNoticesPreventUnauthenticatedAppEnumerationAvoidLockContentionAndElimin
 		t.Fatal(err)
 	}
 	var readBefore, readAfter int64
-	if err := x.db.QueryRow(`SELECT COALESCE(seq_tup_read + idx_tup_fetch, 0) FROM pg_stat_user_tables WHERE schemaname='open_platform' AND relname='grants'`).Scan(&readBefore); err != nil {
+	if err := x.db.QueryRow(`SELECT COALESCE(sum(seq_tup_read + idx_tup_fetch), 0) FROM pg_stat_user_tables WHERE schemaname='open_platform' AND relname IN ('grants','apps')`).Scan(&readBefore); err != nil {
 		t.Fatal(err)
 	}
 	processed, err := s.Work(ctx, 100)
@@ -186,10 +190,10 @@ func TestNoticesPreventUnauthenticatedAppEnumerationAvoidLockContentionAndElimin
 	if _, err := x.db.Exec(`SELECT pg_stat_force_next_flush()`); err != nil {
 		t.Fatal(err)
 	}
-	if err := x.db.QueryRow(`SELECT COALESCE(seq_tup_read + idx_tup_fetch, 0) FROM pg_stat_user_tables WHERE schemaname='open_platform' AND relname='grants'`).Scan(&readAfter); err != nil {
+	if err := x.db.QueryRow(`SELECT COALESCE(sum(seq_tup_read + idx_tup_fetch), 0) FROM pg_stat_user_tables WHERE schemaname='open_platform' AND relname IN ('grants','apps')`).Scan(&readAfter); err != nil {
 		t.Fatal(err)
 	}
 	if delta := readAfter - readBefore; delta >= 100 {
-		t.Fatalf("idle Work() scanned %d grant tuples instead of O(1) index probes", delta)
+		t.Fatalf("idle Work() scanned %d grant and application tuples instead of O(1) index probes", delta)
 	}
 }
