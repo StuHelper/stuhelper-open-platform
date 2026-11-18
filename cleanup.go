@@ -6,7 +6,7 @@ import (
 )
 
 // Cleanup caps each data category independently so one backlog cannot starve others.
-// At most six times limit rows are removed, with a five-second operation budget.
+// At most eight times limit rows are removed, with a five-second operation budget.
 func (s *Service) Cleanup(ctx context.Context, limit int) (int, error) {
 	if limit < 1 || limit > 100 {
 		return 0, ErrInput

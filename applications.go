@@ -51,7 +51,7 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 				if a.Owner != p.Owner {
 					return out, auditSpec{}, ErrNotFound
 				}
-				if a.View.State == "active" || a.View.State == "suspended" {
+				if a.View.State == "active" || a.View.State == "suspended" || a.View.ArchivedAt != nil {
 					return out, auditSpec{}, WithReason(ErrConflict, "state_conflict")
 				}
 				if a.View.Revision != in.Revision {
@@ -99,7 +99,12 @@ func (s *Service) Application(ctx context.Context, p Principal, id string) (Appl
 		if a.Owner != p.Owner && !p.Admin {
 			return ErrNotFound
 		}
+		used, e := t.QuotaUsed(id, s.now().Format("2006-01-02"))
+		if e != nil {
+			return e
+		}
 		out = a.View
+		out.QuotaUsed = &used
 		return nil
 	})
 	return out, e
@@ -235,6 +240,9 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 			if e = s.activeOwner(t, a.Owner); e != nil {
 				return out, auditSpec{}, e
 			}
+			if a.View.ArchivedAt != nil {
+				return out, auditSpec{}, WithReason(ErrConflict, "state_conflict")
+			}
 			if a.View.Revision != in.Revision {
 				return out, auditSpec{}, WithReason(ErrConflict, "revision_mismatch")
 			}
@@ -359,4 +367,43 @@ func authenticatedApp(t Transaction, p Principal, id, secret string) (AppRecord,
 		return a, ErrNotFound
 	}
 	return a, nil
+}
+
+func (s *Service) Archive(ctx context.Context, p Principal, id, key string, revision int64) (Application, error) {
+	var out Application
+	if !validOwner(p.Owner) {
+		return out, ErrUnauthenticated
+	}
+	if !validID(id) || revision < 1 {
+		return out, ErrInput
+	}
+	e := s.transaction(ctx, p.Owner, id, func(t Transaction) error {
+		if e := s.activeOwner(t, p.Owner); e != nil {
+			return e
+		}
+		a, e := t.App(id)
+		if e != nil {
+			return e
+		}
+		if a.Owner != p.Owner {
+			return ErrNotFound
+		}
+		out, e = replay(t, p.Owner, key, "archive:"+id, revision, s.now(), func() (Application, auditSpec, error) {
+			if a.View.ArchivedAt != nil || a.View.Revision != revision {
+				return out, auditSpec{}, ErrConflict
+			}
+			now := s.now().Truncate(time.Microsecond)
+			a.View.State = "suspended"
+			a.View.ArchivedAt = &now
+			a.TerminatedAt = &now
+			a.UpdatedAt = now
+			a.View.Revision++
+			if e = t.SaveApp(a); e != nil {
+				return out, auditSpec{}, e
+			}
+			return a.View, auditSpec{actor: p.Owner, action: "application_archived", target: id}, nil
+		})
+		return e
+	})
+	return out, e
 }

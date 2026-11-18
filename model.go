@@ -64,19 +64,21 @@ type ApplicationInput struct {
 	Revision        int64    `json:"revision,omitempty"`
 }
 type Application struct {
-	ID                 string    `json:"id"`
-	Name               string    `json:"name"`
-	Purpose            string    `json:"purpose"`
-	RedirectURIs       []string  `json:"redirect_uris"`
-	RequestedScopes    []string  `json:"requested_scopes"`
-	ApprovedScopes     []string  `json:"approved_scopes"`
-	ClientType         string    `json:"client_type"`
-	State              string    `json:"state"`
-	Note               string    `json:"note"`
-	Revision           int64     `json:"revision"`
-	CredentialRevision int64     `json:"credential_revision"`
-	Policy             Policy    `json:"policy"`
-	CreatedAt          time.Time `json:"created_at"`
+	ID                 string     `json:"id"`
+	Name               string     `json:"name"`
+	Purpose            string     `json:"purpose"`
+	RedirectURIs       []string   `json:"redirect_uris"`
+	RequestedScopes    []string   `json:"requested_scopes"`
+	ApprovedScopes     []string   `json:"approved_scopes"`
+	ClientType         string     `json:"client_type"`
+	State              string     `json:"state"`
+	Note               string     `json:"note"`
+	Revision           int64      `json:"revision"`
+	CredentialRevision int64      `json:"credential_revision"`
+	Policy             Policy     `json:"policy"`
+	QuotaUsed          *int       `json:"quota_used,omitempty"`
+	ArchivedAt         *time.Time `json:"archived_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
 }
 type AppRecord struct {
 	View              Application
@@ -251,6 +253,24 @@ type Acknowledgement struct {
 	Status string `json:"status"`
 	Note   string `json:"note"`
 }
+type QuotaWindow struct {
+	Set       bool
+	Limit     int
+	Remaining int
+}
+type OverdueNoticeApplication struct {
+	AppID          string    `json:"app_id"`
+	AppName        string    `json:"app_name"`
+	Owner          string    `json:"owner"`
+	State          string    `json:"state"`
+	OverdueNotices int       `json:"overdue_notices"`
+	OldestNoticeAt time.Time `json:"oldest_notice_at"`
+}
+type OverdueCursor struct {
+	Set            bool
+	OldestNoticeAt time.Time
+	AppID          string
+}
 type Page[T any] struct {
 	Items []T    `json:"items"`
 	Next  string `json:"next,omitempty"`
@@ -360,10 +380,12 @@ type Transaction interface {
 	Token(string) (TokenRecord, error)
 	SaveToken(TokenRecord) error
 	RevokeCodeTokens(string, string) error
-	Quota(string, string, int) error
-	LockAppAck(string) error
+	Quota(string, string, int) (int, error)
+	QuotaUsed(string, string) (int, error)
 	Notice(string) (Notice, error)
-	Notices(string, string, int) ([]Notice, error)
+	Notices(string, bool, string, int) ([]Notice, error)
+	OverdueNoticeApps(time.Time, OverdueCursor, int) ([]OverdueNoticeApplication, error)
+	LockAppAck(string) error
 	MarkNoticesSeen([]string, time.Time) error
 	SaveNotice(Notice) error
 	Replay(string, string) (string, json.RawMessage, error)

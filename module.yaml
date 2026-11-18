@@ -43,6 +43,7 @@ scenario_tests:
     - locking_performance_test.go#TestNoticesPreventUnauthenticatedAppEnumerationAvoidLockContentionAndEliminateNPlusOneAndFullScan
     - consent_grants_test.go#TestGrantsLifecycleMetadataFilteringOrderingAndWholeRevoke
     - problem_reasons_test.go#TestProblemReasonSubcodesAndQuotaRetryAfterHeader
+    - governance_test.go#TestQuotaHeadersPendingAckOverdueInspectionAndArchiveRetention
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
     - token_protocol_test.go#TestTokenEndpointAcceptsBrowserFormMediaTypeAndMapsTransientErrorsTo503
@@ -57,6 +58,7 @@ scenario_tests:
   OP-08:
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
   OP-09:
+    - governance_test.go#TestQuotaHeadersPendingAckOverdueInspectionAndArchiveRetention
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
   OP-10:
     - repair_test.go#TestCodeReplayRevokesIssuedTokenAndProfileIdentifiersArePairwise
@@ -65,3 +67,4 @@ scenario_tests:
     - projection_test.go#TestQQProjectionNeverLeaksNumberForStatus
   RET-05:
     - repair_test.go#TestCleanupIsBoundedPreservesLiveDataAndRollsBackFailures
+    - governance_test.go#TestQuotaHeadersPendingAckOverdueInspectionAndArchiveRetention

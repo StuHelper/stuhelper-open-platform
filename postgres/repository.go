@@ -189,6 +189,7 @@ func (t *transaction) Apps(owner string, admin bool, after string, limit int) ([
 		if e != nil {
 			return nil, e
 		}
+
 		out = append(out, a)
 	}
 	return out, safe(rows.Err())
@@ -279,7 +280,7 @@ func (t *transaction) SaveApp(a op.AppRecord) error {
 	if updatedAt.IsZero() {
 		updatedAt = a.View.CreatedAt
 	}
-	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps(id,owner_key,state,revision,secret_hash,document,updated_at,terminated_at,reviewed_by,reviewed_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(id) DO UPDATE SET revision_work_pending=open_platform.apps.revision_work_pending OR ((open_platform.apps.revision,open_platform.apps.state) IS DISTINCT FROM (EXCLUDED.revision,EXCLUDED.state) AND EXISTS (SELECT 1 FROM open_platform.grants g WHERE g.app_id=EXCLUDED.id AND g.state='active')),state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,document=EXCLUDED.document,updated_at=EXCLUDED.updated_at,terminated_at=EXCLUDED.terminated_at,reviewed_by=EXCLUDED.reviewed_by,reviewed_at=EXCLUDED.reviewed_at`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, raw, updatedAt, a.TerminatedAt, a.ReviewedBy, a.ReviewedAt)
+	_, e = t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.apps(id,owner_key,state,revision,secret_hash,document,updated_at,terminated_at,reviewed_by,reviewed_at,archived_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(id) DO UPDATE SET revision_work_pending=open_platform.apps.revision_work_pending OR ((open_platform.apps.revision,open_platform.apps.state) IS DISTINCT FROM (EXCLUDED.revision,EXCLUDED.state) AND EXISTS (SELECT 1 FROM open_platform.grants g WHERE g.app_id=EXCLUDED.id AND g.state='active')),state=EXCLUDED.state,revision=EXCLUDED.revision,secret_hash=EXCLUDED.secret_hash,document=EXCLUDED.document,updated_at=EXCLUDED.updated_at,terminated_at=EXCLUDED.terminated_at,reviewed_by=EXCLUDED.reviewed_by,reviewed_at=EXCLUDED.reviewed_at,archived_at=EXCLUDED.archived_at`, a.View.ID, a.Owner, a.View.State, a.View.Revision, a.SecretHash, raw, updatedAt, a.TerminatedAt, a.ReviewedBy, a.ReviewedAt, a.View.ArchivedAt)
 	return safe(e)
 }
 func (t *transaction) CountApps(owner string) (int, error) {
@@ -474,13 +475,18 @@ func (r *Repository) LocateToken(ctx context.Context, h string) (op.TokenRecord,
 	g, e := r.LocateGrant(ctx, v.GrantID)
 	return v, g, e
 }
-func (t *transaction) Quota(app, day string, limit int) error {
+func (t *transaction) Quota(app, day string, limit int) (int, error) {
 	var n int
 	e := t.tx.QueryRowContext(t.ctx, `INSERT INTO open_platform.quotas VALUES($1,$2,1) ON CONFLICT(app_id,day) DO UPDATE SET used=open_platform.quotas.used+1 WHERE open_platform.quotas.used<$3 RETURNING used`, app, day, limit).Scan(&n)
 	if errors.Is(e, sql.ErrNoRows) {
-		return op.WithReason(op.ErrQuota, "daily_quota_exceeded")
+		return limit, op.WithReason(op.ErrQuota, "daily_quota_exceeded")
 	}
-	return safe(e)
+	return n, safe(e)
+}
+func (t *transaction) QuotaUsed(app, day string) (int, error) {
+	var n int
+	e := t.tx.QueryRowContext(t.ctx, `SELECT COALESCE((SELECT used FROM open_platform.quotas WHERE app_id=$1 AND day=$2),0)`, app, day).Scan(&n)
+	return n, safe(e)
 }
 func (t *transaction) LockAppAck(app string) error {
 	_, e := t.tx.ExecContext(t.ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "open-platform-app-ack:"+app)
@@ -489,8 +495,8 @@ func (t *transaction) LockAppAck(app string) error {
 func (t *transaction) Notice(id string) (op.Notice, error) {
 	return decode[op.Notice](t.tx.QueryRowContext(t.ctx, `SELECT jsonb_set(document,'{sequence}',to_jsonb(position)) FROM open_platform.notices WHERE id=$1`, id))
 }
-func (t *transaction) Notices(app, after string, limit int) ([]op.Notice, error) {
-	rows, e := t.tx.QueryContext(t.ctx, `SELECT jsonb_set(document,'{sequence}',to_jsonb(position)) FROM open_platform.notices WHERE app_id=$1 AND position>COALESCE(NULLIF($2,'')::bigint,0) ORDER BY position LIMIT $3`, app, after, limit)
+func (t *transaction) Notices(app string, pendingAck bool, after string, limit int) ([]op.Notice, error) {
+	rows, e := t.tx.QueryContext(t.ctx, `SELECT jsonb_set(document,'{sequence}',to_jsonb(position)) FROM open_platform.notices WHERE app_id=$1 AND position>COALESCE(NULLIF($2,'')::bigint,0) AND (NOT $3 OR COALESCE(document->>'acknowledgement','') NOT IN ('deleted','retention_exception')) ORDER BY position LIMIT $4`, app, after, pendingAck, limit)
 	if e != nil {
 		return nil, safe(e)
 	}
@@ -501,6 +507,36 @@ func (t *transaction) Notices(app, after string, limit int) ([]op.Notice, error)
 		if e != nil {
 			return nil, e
 		}
+		out = append(out, v)
+	}
+	return out, safe(rows.Err())
+}
+func (t *transaction) OverdueNoticeApps(cutoff time.Time, cursor op.OverdueCursor, limit int) ([]op.OverdueNoticeApplication, error) {
+	rows, e := t.tx.QueryContext(t.ctx, `
+WITH grouped AS (
+	SELECT n.app_id, count(*)::int AS overdue_notices, min(n.created_at) AS oldest_notice_at
+	FROM open_platform.notices n
+	WHERE COALESCE(n.document->>'acknowledgement','') NOT IN ('deleted','retention_exception')
+	  AND n.created_at <= $1
+	GROUP BY n.app_id
+)
+SELECT g.app_id, COALESCE(a.document->>'name',''), a.owner_key, a.state, g.overdue_notices, g.oldest_notice_at
+FROM grouped g
+JOIN open_platform.apps a ON a.id=g.app_id
+WHERE NOT $2 OR g.oldest_notice_at>$3 OR (g.oldest_notice_at=$3 AND g.app_id>$4)
+ORDER BY g.oldest_notice_at ASC, g.app_id ASC
+LIMIT $5`, cutoff, cursor.Set, cursor.OldestNoticeAt, cursor.AppID, limit)
+	if e != nil {
+		return nil, safe(e)
+	}
+	defer rows.Close()
+	out := []op.OverdueNoticeApplication{}
+	for rows.Next() {
+		var v op.OverdueNoticeApplication
+		if e = rows.Scan(&v.AppID, &v.AppName, &v.Owner, &v.State, &v.OverdueNotices, &v.OldestNoticeAt); e != nil {
+			return nil, safe(e)
+		}
+		v.OldestNoticeAt = v.OldestNoticeAt.UTC()
 		out = append(out, v)
 	}
 	return out, safe(rows.Err())

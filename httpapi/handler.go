@@ -163,6 +163,13 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if noQuery() {
 			result, e = h.Service.AdminApplication(r.Context(), p, parts[2])
 		}
+	case path == "admin/notices/overdue" && r.Method == "GET":
+		var after string
+		var days, limit int
+		days, after, limit, e = queryOverduePage(r)
+		if e == nil {
+			result, e = h.Service.OverdueNoticeApplications(r.Context(), p, days, after, limit)
+		}
 	case len(parts) == 2 && parts[0] == "apps" && r.Method == "GET":
 		if noQuery() {
 			result, e = h.Service.Application(r.Context(), p, parts[1])
@@ -172,6 +179,15 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			var in op.ApplicationInput
 			if e = body(r, &in); e == nil {
 				result, e = h.Service.Apply(r.Context(), p, parts[1], key, in)
+			}
+		}
+	case len(parts) == 3 && parts[0] == "apps" && parts[2] == "archive" && r.Method == "POST":
+		var in struct {
+			Revision int64 `json:"revision"`
+		}
+		if noQuery() {
+			if e = body(r, &in); e == nil {
+				result, e = h.Service.Archive(r.Context(), p, parts[1], key, in.Revision)
 			}
 		}
 	case len(parts) == 4 && parts[0] == "admin" && parts[1] == "apps" && parts[3] == "review" && r.Method == "POST":
@@ -226,8 +242,10 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case noticeRoute && len(parts) == 3 && r.Method == "GET":
 		var after string
 		var limit int
-		if after, limit, e = queryPage(r); e == nil {
-			result, e = h.Service.Notices(r.Context(), p, parts[1], secret, after, limit)
+		var pendingAck bool
+		pendingAck, after, limit, e = queryNoticesPage(r)
+		if e == nil {
+			result, e = h.Service.ListNotices(r.Context(), p, parts[1], secret, pendingAck, after, limit)
 		}
 	case noticeRoute && len(parts) == 5 && parts[4] == "ack" && r.Method == "POST":
 		if noQuery() {
@@ -347,7 +365,11 @@ func (h Handler) data(w http.ResponseWriter, r *http.Request, scope string) {
 		return
 	}
 	q := r.URL.Query()
-	out, e := h.Service.Read(r.Context(), strings.TrimPrefix(auth, "Bearer "), scope, op.Query{ID: q.Get("id"), Kind: q.Get("kind"), Query: q.Get("query"), TermID: q.Get("term_id"), TargetID: q.Get("target_id"), After: q.Get("after"), Limit: limit})
+	out, qw, e := h.Service.ReadWithQuota(r.Context(), strings.TrimPrefix(auth, "Bearer "), scope, op.Query{ID: q.Get("id"), Kind: q.Get("kind"), Query: q.Get("query"), TermID: q.Get("term_id"), TargetID: q.Get("target_id"), After: q.Get("after"), Limit: limit})
+	if qw.Set {
+		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(qw.Limit))
+		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(qw.Remaining))
+	}
 	if e != nil {
 		h.failure(w, e)
 		return
@@ -371,4 +393,54 @@ func queryAdminApps(r *http.Request) (op.AdminAppFilter, error) {
 	}
 	q := r.URL.Query()
 	return op.AdminAppFilter{State: q.Get("state"), Owner: q.Get("owner"), After: q.Get("after"), Limit: limit}, nil
+}
+
+func queryOverduePage(r *http.Request) (int, string, int, error) {
+	for k, v := range r.URL.Query() {
+		if !slices.Contains([]string{"older_than_days", "after", "limit"}, k) || len(v) != 1 {
+			return 0, "", 0, op.ErrInput
+		}
+	}
+	days := 7
+	if raw := r.URL.Query().Get("older_than_days"); raw != "" {
+		n, e := strconv.Atoi(raw)
+		if e != nil || n < 1 || n > 365 {
+			return 0, "", 0, op.ErrInput
+		}
+		days = n
+	}
+	limit := 50
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		n, e := strconv.Atoi(raw)
+		if e != nil {
+			return 0, "", 0, op.ErrInput
+		}
+		limit = n
+	}
+	return days, r.URL.Query().Get("after"), limit, nil
+}
+
+func queryNoticesPage(r *http.Request) (bool, string, int, error) {
+	for k, v := range r.URL.Query() {
+		if !slices.Contains([]string{"pending_ack", "after", "limit"}, k) || len(v) != 1 {
+			return false, "", 0, op.ErrInput
+		}
+	}
+	pendingAck := false
+	if raw := r.URL.Query().Get("pending_ack"); raw != "" {
+		b, e := strconv.ParseBool(raw)
+		if e != nil || (raw != "true" && raw != "false") {
+			return false, "", 0, op.ErrInput
+		}
+		pendingAck = b
+	}
+	limit := 50
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		n, e := strconv.Atoi(raw)
+		if e != nil {
+			return false, "", 0, op.ErrInput
+		}
+		limit = n
+	}
+	return pendingAck, r.URL.Query().Get("after"), limit, nil
 }

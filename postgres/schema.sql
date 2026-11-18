@@ -13,6 +13,8 @@ ALTER TABLE open_platform.apps ADD COLUMN IF NOT EXISTS reviewed_at timestamptz;
 CREATE INDEX IF NOT EXISTS apps_updated ON open_platform.apps(updated_at DESC,id DESC);
 CREATE INDEX IF NOT EXISTS apps_state_updated ON open_platform.apps(state,updated_at DESC,id DESC);
 CREATE INDEX IF NOT EXISTS apps_owner_updated ON open_platform.apps(owner_key,updated_at DESC,id DESC);
+ALTER TABLE open_platform.apps ADD COLUMN IF NOT EXISTS archived_at timestamptz;
+CREATE INDEX IF NOT EXISTS apps_archived_expiry ON open_platform.apps(archived_at,id) WHERE archived_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS grants_owner ON open_platform.grants(owner_key,id);
 CREATE INDEX IF NOT EXISTS grants_active_owner ON open_platform.grants(owner_key,id) WHERE state='active';
 ALTER TABLE open_platform.grants ADD COLUMN IF NOT EXISTS granted_at timestamptz NOT NULL DEFAULT now();
@@ -40,6 +42,8 @@ CREATE TABLE IF NOT EXISTS open_platform.tokens(hash text PRIMARY KEY,grant_id t
 CREATE TABLE IF NOT EXISTS open_platform.quotas(app_id text NOT NULL REFERENCES open_platform.apps(id),day text NOT NULL,used integer NOT NULL,PRIMARY KEY(app_id,day));
 CREATE TABLE IF NOT EXISTS open_platform.notices(id text PRIMARY KEY,position bigint GENERATED ALWAYS AS IDENTITY UNIQUE,created_at timestamptz NOT NULL,app_id text NOT NULL REFERENCES open_platform.apps(id),document jsonb NOT NULL);
 CREATE INDEX IF NOT EXISTS notices_app ON open_platform.notices(app_id,position);
+CREATE INDEX IF NOT EXISTS notices_pending_ack ON open_platform.notices(app_id,position) WHERE COALESCE(document->>'acknowledgement','') NOT IN ('deleted','retention_exception');
+CREATE INDEX IF NOT EXISTS notices_overdue_ack ON open_platform.notices(created_at,app_id) WHERE COALESCE(document->>'acknowledgement','') NOT IN ('deleted','retention_exception');
 CREATE TABLE IF NOT EXISTS open_platform.requests(actor text NOT NULL,key text NOT NULL,digest text NOT NULL,result jsonb NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(actor,key));
 CREATE TABLE IF NOT EXISTS open_platform.events(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,actor text NOT NULL,kind text NOT NULL,object_id text NOT NULL,operation text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(), reason text NOT NULL DEFAULT '', result text NOT NULL DEFAULT 'unknown' CHECK(result IN ('success','denied','failed','unknown')), recorded_xid xid8 NOT NULL DEFAULT pg_current_xact_id(), audit_actor text NOT NULL DEFAULT 'unknown', audit_target text NOT NULL DEFAULT 'unknown', audit_action text NOT NULL DEFAULT 'unknown', audit_school text NOT NULL DEFAULT '*', audit_group text NOT NULL DEFAULT '*', audit_time timestamptz NOT NULL DEFAULT now());
 REVOKE ALL ON ALL TABLES IN SCHEMA open_platform FROM PUBLIC;
