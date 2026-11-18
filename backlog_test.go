@@ -36,8 +36,10 @@ func TestBacklogObservesPendingNoticesAndRetentionLag(t *testing.T) {
 	if _, e = s.Review(ctx, admin, app2.ID, "sus-backlog", op.ReviewInput{Revision: app2.Revision, Decision: "suspend", ApprovedScopes: []string{}, Note: "suspend"}); e != nil {
 		t.Fatal(e)
 	}
+	suspendedAt := s.Now()
+	x.clock.Add(45)
 	susBacklog, e := s.Backlog(ctx)
-	if e != nil || !susBacklog.HasBacklog || !susBacklog.PendingNotices.HasBacklog {
+	if e != nil || !susBacklog.HasBacklog || !susBacklog.PendingNotices.HasBacklog || susBacklog.PendingNotices.OldestExpiredAt == nil || !susBacklog.PendingNotices.OldestExpiredAt.Equal(suspendedAt) || susBacklog.PendingNotices.LagSeconds != 45 || susBacklog.MaxLagSeconds != 45 {
 		t.Fatalf("expected pending notice backlog for suspended app, got %+v err=%v", susBacklog, e)
 	}
 	if _, e = s.Work(ctx, 100); e != nil {
@@ -77,7 +79,8 @@ func TestBacklogObservesPendingNoticesAndRetentionLag(t *testing.T) {
 	if !b.HasBacklog || !b.PendingNotices.HasBacklog || !b.ExpiredRequests.HasBacklog || !b.ExpiredTokens.HasBacklog || !b.ExpiredConsents.HasBacklog || !b.ExpiredEvents.HasBacklog || !b.ExpiredNotices.HasBacklog || !b.ExpiredQuotas.HasBacklog {
 		t.Fatalf("expected all 7 categories to report backlog: %+v", b)
 	}
-	if b.ExpiredRequests.LagSeconds != int64((2*time.Hour)/time.Second) {
+	// The setup wrote real receipts on November 1; the first became eligible on November 2.
+	if b.ExpiredRequests.LagSeconds != int64(now.Sub(time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC))/time.Second) {
 		t.Fatalf("unexpected request lag: %d", b.ExpiredRequests.LagSeconds)
 	}
 	if b.ExpiredEvents.LagSeconds != int64((3*time.Hour)/time.Second) {
@@ -114,5 +117,34 @@ func TestBacklogObservesPendingNoticesAndRetentionLag(t *testing.T) {
 	cancel()
 	if _, e = s.Backlog(cancelled); !errors.Is(e, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", e)
+	}
+}
+
+func TestBacklogUsesCleanupCalendarOnLeapDay(t *testing.T) {
+	x := setup(t)
+	x.clock.Store(time.Date(2028, 2, 29, 12, 0, 0, 0, time.UTC).Unix())
+	app := apply(t, x.s, dev, "calendar", []string{"profile"}, "public")
+	created := time.Date(2027, 3, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := x.db.Exec(`INSERT INTO open_platform.events(actor,kind,object_id,operation,created_at) VALUES('test','test','test','test',$1)`, created); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := x.db.Exec(`INSERT INTO open_platform.notices(id,app_id,created_at,document) VALUES('calendar',$1,$2,'{}')`, app.ID, created); err != nil {
+		t.Fatal(err)
+	}
+	b, err := x.s.Backlog(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []op.CategoryBacklog{b.ExpiredEvents, b.ExpiredNotices} {
+		if !c.HasBacklog || c.LagSeconds != 43200 || c.OldestExpiredAt == nil || !c.OldestExpiredAt.Equal(x.s.Now().Add(-12*time.Hour)) {
+			t.Fatalf("leap day backlog: %+v", c)
+		}
+	}
+	if _, err = x.s.Cleanup(ctx, 100); err != nil {
+		t.Fatal(err)
+	}
+	b, err = x.s.Backlog(ctx)
+	if err != nil || b.ExpiredEvents.HasBacklog || b.ExpiredNotices.HasBacklog {
+		t.Fatalf("after cleanup: %+v %v", b, err)
 	}
 }
