@@ -47,6 +47,7 @@ scenario_tests:
     - governance_test.go#TestQuotaHeadersPendingAckOverdueInspectionAndArchiveRetention
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
+    - httpapi_contract_test.go#TestGeneratedServerBindingAndOpenAPIContractValidation
     - token_protocol_test.go#TestTokenEndpointAcceptsBrowserFormMediaTypeAndMapsTransientErrorsTo503
     - input_validation_test.go#TestMalformedUTF8NullBytesSingleLineFieldsClosureKeyAndAuditSnapshotValidation
   OP-05:

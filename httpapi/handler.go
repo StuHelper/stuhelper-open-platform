@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	op "github.com/StuHelper/stuhelper-open-platform"
+	"github.com/StuHelper/stuhelper-open-platform/sdk"
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,6 +20,19 @@ type Handler struct {
 	Service      *op.Service
 	Authenticate func(*http.Request) (op.Principal, error)
 }
+
+type authContextKey struct{}
+
+type requestAuth struct {
+	principal op.Principal
+	basicApp  string
+	secret    string
+	basic     bool
+}
+
+type serverAdapter struct{ Handler }
+
+var _ sdk.ServerInterface = serverAdapter{}
 
 func write(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -86,6 +102,46 @@ func (h Handler) principal(r *http.Request) (op.Principal, error) {
 	}
 	return p, nil
 }
+func authFrom(r *http.Request) requestAuth {
+	v, _ := r.Context().Value(authContextKey{}).(requestAuth)
+	return v
+}
+func validateAllowedQuery(rawQuery string, allowed []string) error {
+	if rawQuery == "" {
+		return nil
+	}
+	values, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return op.ErrInput
+	}
+	for k, v := range values {
+		if k == "pending_ack" && len(v) == 1 && v[0] != "" && v[0] != "true" && v[0] != "false" {
+			return op.ErrInput
+		}
+		if !slices.Contains(allowed, k) || len(v) != 1 || (k == "limit" && v[0] == "") {
+			return op.ErrInput
+		}
+	}
+	return nil
+}
+func pageArgs(after *sdk.PageAfter, limit *sdk.PageLimit) (string, int) {
+	cursor := ""
+	if after != nil {
+		cursor = *after
+	}
+	size := 50
+	if limit != nil {
+		size = *limit
+	}
+	return cursor, size
+}
+func derefString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
@@ -96,206 +152,195 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.failure(w, op.ErrUnavailable)
 		return
 	}
-	path := strings.TrimPrefix(r.URL.Path, "/api/v1/open-platform/")
-	if path == r.URL.Path || strings.Contains(path, "//") {
+	if !strings.HasPrefix(r.URL.Path, "/api/v1/open-platform/") || strings.Contains(r.URL.Path, "//") || path.Clean(r.URL.Path) != r.URL.Path {
 		h.failure(w, op.ErrNotFound)
 		return
 	}
-	parts := strings.Split(path, "/")
-	if path == "token" && r.Method == "POST" {
-		h.token(w, r)
+	mux := http.NewServeMux()
+	sdk.HandlerWithOptions(serverAdapter{Handler: h}, sdk.StdHTTPServerOptions{
+		BaseRouter: mux,
+		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
+			h.failure(w, op.ErrInput)
+		},
+	})
+	_, pattern := mux.Handler(r)
+	spec, ok := contractRoutes[pattern]
+	if !ok {
+		h.failure(w, op.ErrNotFound)
 		return
 	}
-	if len(parts) == 2 && parts[0] == "data" && r.Method == "GET" {
-		h.data(w, r, parts[1])
+	if pattern == "POST /api/v1/open-platform/token" {
+		mux.ServeHTTP(w, r)
 		return
 	}
+	if pattern == "GET /api/v1/open-platform/data/{scope}" {
+		if e := validateAllowedQuery(r.URL.RawQuery, spec.queryParams); e != nil {
+			h.failure(w, e)
+			return
+		}
+		mux.ServeHTTP(w, r)
+		return
+	}
+
+	var auth requestAuth
+	noticeRoute := pattern == "GET /api/v1/open-platform/apps/{id}/notices" || pattern == "POST /api/v1/open-platform/apps/{id}/notices/{notice_id}/ack"
 	appID, secret, basic := r.BasicAuth()
-	noticeRoute := len(parts) >= 3 && parts[0] == "apps" && parts[2] == "notices"
-	var p op.Principal
-	var e error
 	if noticeRoute && basic {
-		if appID != parts[1] || secret == "" {
+		segs := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/open-platform/"), "/")
+		if len(segs) < 3 || appID != segs[1] || secret == "" {
 			h.failure(w, op.ErrUnauthenticated)
 			return
 		}
+		auth = requestAuth{basicApp: appID, secret: secret, basic: true}
 	} else {
-		p, e = h.principal(r)
+		p, e := h.principal(r)
 		if e != nil {
 			h.failure(w, e)
 			return
 		}
+		auth = requestAuth{principal: p}
 	}
-	var result any
-	key := r.Header.Get("Idempotency-Key")
-	if r.Method == "POST" && len(r.Header.Values("Idempotency-Key")) != 1 {
+	if spec.idempotent && (len(r.Header.Values("Idempotency-Key")) != 1 || r.Header.Get("Idempotency-Key") == "") {
 		h.failure(w, op.ErrInput)
 		return
 	}
-	noQuery := func() bool {
-		if len(r.URL.RawQuery) != 0 {
-			e = op.ErrInput
-			return false
-		}
-		return true
-	}
-	switch {
-	case path == "apps" && r.Method == "POST":
-		if noQuery() {
-			var in op.ApplicationInput
-			if e = body(r, &in); e == nil {
-				result, e = h.Service.Apply(r.Context(), p, "", key, in)
-			}
-		}
-	case path == "apps" && r.Method == "GET":
-		var after string
-		var limit int
-		if after, limit, e = queryPage(r); e == nil {
-			result, e = h.Service.Applications(r.Context(), p, false, after, limit)
-		}
-	case path == "admin/apps" && r.Method == "GET":
-		var f op.AdminAppFilter
-		f, e = queryAdminApps(r)
-		if e == nil {
-			result, e = h.Service.AdminApplications(r.Context(), p, f)
-		}
-	case len(parts) == 3 && parts[0] == "admin" && parts[1] == "apps" && r.Method == "GET":
-		if noQuery() {
-			result, e = h.Service.AdminApplication(r.Context(), p, parts[2])
-		}
-	case path == "admin/notices/overdue" && r.Method == "GET":
-		var after string
-		var days, limit int
-		days, after, limit, e = queryOverduePage(r)
-		if e == nil {
-			result, e = h.Service.OverdueNoticeApplications(r.Context(), p, days, after, limit)
-		}
-	case len(parts) == 2 && parts[0] == "apps" && r.Method == "GET":
-		if noQuery() {
-			result, e = h.Service.Application(r.Context(), p, parts[1])
-		}
-	case len(parts) == 3 && parts[0] == "apps" && parts[2] == "submit" && r.Method == "POST":
-		if noQuery() {
-			var in op.ApplicationInput
-			if e = body(r, &in); e == nil {
-				result, e = h.Service.Apply(r.Context(), p, parts[1], key, in)
-			}
-		}
-	case len(parts) == 3 && parts[0] == "apps" && parts[2] == "archive" && r.Method == "POST":
-		var in struct {
-			Revision int64 `json:"revision"`
-		}
-		if noQuery() {
-			if e = body(r, &in); e == nil {
-				result, e = h.Service.Archive(r.Context(), p, parts[1], key, in.Revision)
-			}
-		}
-	case len(parts) == 4 && parts[0] == "admin" && parts[1] == "apps" && parts[3] == "review" && r.Method == "POST":
-		if noQuery() {
-			var in op.ReviewInput
-			if e = body(r, &in); e == nil {
-				result, e = h.Service.Review(r.Context(), p, parts[2], key, in)
-			}
-		}
-	case len(parts) == 3 && parts[0] == "apps" && parts[2] == "credential" && r.Method == "POST":
-		if noQuery() {
-			var in struct {
-				Revision int64 `json:"revision"`
-			}
-			if e = body(r, &in); e == nil {
-				result, e = h.Service.RotateCredential(r.Context(), p, parts[1], key, in.Revision)
-			}
-		}
-	case path == "consents" && r.Method == "POST":
-		if noQuery() {
-			var in op.ConsentInput
-			if e = body(r, &in); e == nil {
-				result, e = h.Service.PrepareConsent(r.Context(), p, key, in)
-			}
-		}
-	case len(parts) == 2 && parts[0] == "consents" && r.Method == "GET":
-		if noQuery() {
-			result, e = h.Service.Consent(r.Context(), p, parts[1])
-		}
-	case len(parts) == 3 && parts[0] == "consents" && parts[2] == "decision" && r.Method == "POST":
-		if noQuery() {
-			var in op.ConsentDecision
-			if e = body(r, &in); e == nil {
-				result, e = h.Service.Decide(r.Context(), p, parts[1], key, in)
-			}
-		}
-	case path == "grants" && r.Method == "GET":
-		var after string
-		var limit int
-		var state string
-		state, after, limit, e = queryGrantsPage(r)
-		if e == nil {
-			result, e = h.Service.ListGrants(r.Context(), p, state, after, limit)
-		}
-	case len(parts) == 3 && parts[0] == "grants" && parts[2] == "revoke" && r.Method == "POST":
-		if noQuery() {
-			var in op.RevokeInput
-			if e = body(r, &in); e == nil {
-				result, e = h.Service.Revoke(r.Context(), p, parts[1], key, in)
-			}
-		}
-	case noticeRoute && len(parts) == 3 && r.Method == "GET":
-		var after string
-		var limit int
-		var pendingAck bool
-		pendingAck, after, limit, e = queryNoticesPage(r)
-		if e == nil {
-			result, e = h.Service.ListNotices(r.Context(), p, parts[1], secret, pendingAck, after, limit)
-		}
-	case noticeRoute && len(parts) == 5 && parts[4] == "ack" && r.Method == "POST":
-		if noQuery() {
-			var in op.Acknowledgement
-			if e = body(r, &in); e == nil {
-				result, e = h.Service.Acknowledge(r.Context(), p, parts[1], secret, parts[3], key, in)
-			}
-		}
-	default:
-		e = op.ErrNotFound
-	}
-	if e != nil {
+	if e := validateAllowedQuery(r.URL.RawQuery, spec.queryParams); e != nil {
 		h.failure(w, e)
 		return
 	}
-	write(w, 200, result)
+	mux.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), authContextKey{}, auth)))
 }
-func queryPage(r *http.Request) (string, int, error) {
-	for k, v := range r.URL.Query() {
-		if !slices.Contains([]string{"after", "limit"}, k) || len(v) != 1 {
-			return "", 0, op.ErrInput
-		}
+
+func (s serverAdapter) respond(w http.ResponseWriter, result any, err error) {
+	if err != nil {
+		s.failure(w, err)
+		return
 	}
-	limit := 50
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		n, e := strconv.Atoi(raw)
-		if e != nil {
-			return "", 0, op.ErrInput
-		}
-		limit = n
-	}
-	return r.URL.Query().Get("after"), limit, nil
+	write(w, http.StatusOK, result)
 }
-func queryGrantsPage(r *http.Request) (string, string, int, error) {
-	for k, v := range r.URL.Query() {
-		if !slices.Contains([]string{"state", "after", "limit"}, k) || len(v) != 1 {
-			return "", "", 0, op.ErrInput
-		}
+
+func (s serverAdapter) CreateApplication(w http.ResponseWriter, r *http.Request, params sdk.CreateApplicationParams) {
+	var in op.ApplicationInput
+	if e := body(r, &in); e != nil {
+		s.failure(w, e)
+		return
 	}
-	limit := 50
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		n, e := strconv.Atoi(raw)
-		if e != nil {
-			return "", "", 0, op.ErrInput
-		}
-		limit = n
-	}
-	return r.URL.Query().Get("state"), r.URL.Query().Get("after"), limit, nil
+	out, e := s.Service.Apply(r.Context(), authFrom(r).principal, "", params.IdempotencyKey, in)
+	s.respond(w, out, e)
 }
-func (h Handler) token(w http.ResponseWriter, r *http.Request) {
+func (s serverAdapter) ListOwnApplications(w http.ResponseWriter, r *http.Request, params sdk.ListOwnApplicationsParams) {
+	after, limit := pageArgs(params.After, params.Limit)
+	out, e := s.Service.Applications(r.Context(), authFrom(r).principal, false, after, limit)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) ListApplications(w http.ResponseWriter, r *http.Request, params sdk.ListApplicationsParams) {
+	after, limit := pageArgs(params.After, params.Limit)
+	state := ""
+	if params.State != nil {
+		state = string(*params.State)
+	}
+	out, e := s.Service.AdminApplications(r.Context(), authFrom(r).principal, op.AdminAppFilter{After: after, Limit: limit, Owner: derefString(params.Owner), State: state})
+	s.respond(w, out, e)
+}
+func (s serverAdapter) GetOwnApplication(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath) {
+	out, e := s.Service.Application(r.Context(), authFrom(r).principal, id)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) ResubmitApplication(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.ResubmitApplicationParams) {
+	var in op.ApplicationInput
+	if e := body(r, &in); e != nil {
+		s.failure(w, e)
+		return
+	}
+	out, e := s.Service.Apply(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) ReviewApplication(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.ReviewApplicationParams) {
+	var in op.ReviewInput
+	if e := body(r, &in); e != nil {
+		s.failure(w, e)
+		return
+	}
+	out, e := s.Service.Review(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) RotateClientCredential(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.RotateClientCredentialParams) {
+	var in struct {
+		Revision int64 `json:"revision"`
+	}
+	if e := body(r, &in); e != nil {
+		s.failure(w, e)
+		return
+	}
+	out, e := s.Service.RotateCredential(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in.Revision)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) PrepareConsent(w http.ResponseWriter, r *http.Request, params sdk.PrepareConsentParams) {
+	var in op.ConsentInput
+	if e := body(r, &in); e != nil {
+		s.failure(w, e)
+		return
+	}
+	out, e := s.Service.PrepareConsent(r.Context(), authFrom(r).principal, params.IdempotencyKey, in)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) GetConsent(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath) {
+	out, e := s.Service.Consent(r.Context(), authFrom(r).principal, id)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) DecideConsent(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.DecideConsentParams) {
+	var in op.ConsentDecision
+	if e := body(r, &in); e != nil {
+		s.failure(w, e)
+		return
+	}
+	out, e := s.Service.Decide(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) ListOwnGrants(w http.ResponseWriter, r *http.Request, params sdk.ListOwnGrantsParams) {
+	after, limit := pageArgs(params.After, params.Limit)
+	state := ""
+	if params.State != nil {
+		state = string(*params.State)
+	}
+	out, e := s.Service.ListGrants(r.Context(), authFrom(r).principal, state, after, limit)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) RevokeScopes(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.RevokeScopesParams) {
+	var in op.RevokeInput
+	if e := body(r, &in); e != nil {
+		s.failure(w, e)
+		return
+	}
+	out, e := s.Service.Revoke(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) ListNotices(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.ListNoticesParams) {
+	auth := authFrom(r)
+	if auth.basic && auth.basicApp != id {
+		s.failure(w, op.ErrUnauthenticated)
+		return
+	}
+	after, limit := pageArgs(params.After, params.Limit)
+	pending := params.PendingAck != nil && *params.PendingAck
+	out, e := s.Service.ListNotices(r.Context(), auth.principal, id, auth.secret, pending, after, limit)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) AcknowledgeNotice(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, noticeID sdk.NoticeIdPath, params sdk.AcknowledgeNoticeParams) {
+	auth := authFrom(r)
+	if auth.basic && auth.basicApp != id {
+		s.failure(w, op.ErrUnauthenticated)
+		return
+	}
+	var in op.Acknowledgement
+	if e := body(r, &in); e != nil {
+		s.failure(w, e)
+		return
+	}
+	out, e := s.Service.Acknowledge(r.Context(), auth.principal, id, auth.secret, noticeID, params.IdempotencyKey, in)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) ExchangeCode(w http.ResponseWriter, r *http.Request) {
 	bad := func(code string, status int) { write(w, status, map[string]string{"error": code}) }
 	if len(r.URL.RawQuery) != 0 || !validMediaType(r, "application/x-www-form-urlencoded") || r.ParseForm() != nil {
 		bad("invalid_request", 400)
@@ -318,7 +363,7 @@ func (h Handler) token(w http.ResponseWriter, r *http.Request) {
 		bad("invalid_client", 401)
 		return
 	}
-	result, e := h.Service.Exchange(r.Context(), op.TokenInput{GrantType: r.PostForm.Get("grant_type"), ClientID: client, RedirectURI: r.PostForm.Get("redirect_uri"), Code: r.PostForm.Get("code"), Verifier: r.PostForm.Get("code_verifier"), ClientSecret: secret})
+	result, e := s.Service.Exchange(r.Context(), op.TokenInput{GrantType: r.PostForm.Get("grant_type"), ClientID: client, RedirectURI: r.PostForm.Get("redirect_uri"), Code: r.PostForm.Get("code"), Verifier: r.PostForm.Get("code_verifier"), ClientSecret: secret})
 	if e != nil {
 		if errors.Is(e, op.ErrClient) {
 			w.Header().Set("WWW-Authenticate", `Basic realm="open-platform"`)
@@ -334,9 +379,10 @@ func (h Handler) token(w http.ResponseWriter, r *http.Request) {
 	}
 	write(w, 200, result)
 }
-func (h Handler) data(w http.ResponseWriter, r *http.Request, scope string) {
+func (s serverAdapter) ReadAuthorizedData(w http.ResponseWriter, r *http.Request, scope sdk.ScopePath, params sdk.ReadAuthorizedDataParams) {
+	sc := string(scope)
 	allowed := []string{}
-	switch scope {
+	switch sc {
 	case "schedule":
 		allowed = []string{"term_id", "after", "limit"}
 	case "catalog":
@@ -344,103 +390,64 @@ func (h Handler) data(w http.ResponseWriter, r *http.Request, scope string) {
 	case "public_reviews":
 		allowed = []string{"id", "kind", "term_id", "target_id", "after", "limit"}
 	}
-	for k, v := range r.URL.Query() {
-		if !slices.Contains(allowed, k) || len(v) != 1 {
-			h.failure(w, op.ErrInput)
-			return
-		}
+	if e := validateAllowedQuery(r.URL.RawQuery, allowed); e != nil {
+		s.failure(w, e)
+		return
 	}
 	limit := 50
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		n, e := strconv.Atoi(raw)
-		if e != nil || n < 1 || n > 100 {
-			h.failure(w, op.ErrInput)
+	if params.Limit != nil {
+		if *params.Limit < 1 || *params.Limit > 100 {
+			s.failure(w, op.ErrInput)
 			return
 		}
-		limit = n
+		limit = *params.Limit
 	}
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Bearer ") {
-		h.failure(w, op.ErrUnauthenticated)
+		s.failure(w, op.ErrUnauthenticated)
 		return
 	}
-	q := r.URL.Query()
-	out, qw, e := h.Service.ReadWithQuota(r.Context(), strings.TrimPrefix(auth, "Bearer "), scope, op.Query{ID: q.Get("id"), Kind: q.Get("kind"), Query: q.Get("query"), TermID: q.Get("term_id"), TargetID: q.Get("target_id"), After: q.Get("after"), Limit: limit})
+	out, qw, e := s.Service.ReadWithQuota(r.Context(), strings.TrimPrefix(auth, "Bearer "), sc, op.Query{
+		ID:       derefString(params.Id),
+		Kind:     derefString(params.Kind),
+		Query:    derefString(params.Query),
+		TermID:   derefString(params.TermId),
+		TargetID: derefString(params.TargetId),
+		After:    derefString(params.After),
+		Limit:    limit,
+	})
 	if qw.Set {
 		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(qw.Limit))
 		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(qw.Remaining))
 	}
-	if e != nil {
-		h.failure(w, e)
+	s.respond(w, out, e)
+}
+
+func (s serverAdapter) GetAdminApplication(w http.ResponseWriter, r *http.Request, id string) {
+	out, e := s.Service.AdminApplication(r.Context(), authFrom(r).principal, id)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) ArchiveApplication(w http.ResponseWriter, r *http.Request, id string, params sdk.ArchiveApplicationParams) {
+	var in struct {
+		Revision int64 `json:"revision"`
+	}
+	if e := body(r, &in); e != nil {
+		s.failure(w, e)
 		return
 	}
-	write(w, 200, out)
+	out, e := s.Service.Archive(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in.Revision)
+	s.respond(w, out, e)
 }
-
-func queryAdminApps(r *http.Request) (op.AdminAppFilter, error) {
-	for k, v := range r.URL.Query() {
-		if !slices.Contains([]string{"state", "owner", "after", "limit"}, k) || len(v) != 1 {
-			return op.AdminAppFilter{}, op.ErrInput
-		}
-	}
-	limit := 50
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		n, e := strconv.Atoi(raw)
-		if e != nil {
-			return op.AdminAppFilter{}, op.ErrInput
-		}
-		limit = n
-	}
-	q := r.URL.Query()
-	return op.AdminAppFilter{State: q.Get("state"), Owner: q.Get("owner"), After: q.Get("after"), Limit: limit}, nil
-}
-
-func queryOverduePage(r *http.Request) (int, string, int, error) {
-	for k, v := range r.URL.Query() {
-		if !slices.Contains([]string{"older_than_days", "after", "limit"}, k) || len(v) != 1 {
-			return 0, "", 0, op.ErrInput
-		}
-	}
+func (s serverAdapter) ListOverdueNoticeApplications(w http.ResponseWriter, r *http.Request, params sdk.ListOverdueNoticeApplicationsParams) {
 	days := 7
-	if raw := r.URL.Query().Get("older_than_days"); raw != "" {
-		n, e := strconv.Atoi(raw)
-		if e != nil || n < 1 || n > 365 {
-			return 0, "", 0, op.ErrInput
-		}
-		days = n
-	}
-	limit := 50
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		n, e := strconv.Atoi(raw)
-		if e != nil {
-			return 0, "", 0, op.ErrInput
-		}
-		limit = n
-	}
-	return days, r.URL.Query().Get("after"), limit, nil
-}
-
-func queryNoticesPage(r *http.Request) (bool, string, int, error) {
-	for k, v := range r.URL.Query() {
-		if !slices.Contains([]string{"pending_ack", "after", "limit"}, k) || len(v) != 1 {
-			return false, "", 0, op.ErrInput
+	if params.OlderThanDays != nil {
+		days = *params.OlderThanDays
+		if days < 1 || days > 365 {
+			s.failure(w, op.ErrInput)
+			return
 		}
 	}
-	pendingAck := false
-	if raw := r.URL.Query().Get("pending_ack"); raw != "" {
-		b, e := strconv.ParseBool(raw)
-		if e != nil || (raw != "true" && raw != "false") {
-			return false, "", 0, op.ErrInput
-		}
-		pendingAck = b
-	}
-	limit := 50
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		n, e := strconv.Atoi(raw)
-		if e != nil {
-			return false, "", 0, op.ErrInput
-		}
-		limit = n
-	}
-	return pendingAck, r.URL.Query().Get("after"), limit, nil
+	after, limit := pageArgs(params.After, params.Limit)
+	out, e := s.Service.OverdueNoticeApplications(r.Context(), authFrom(r).principal, days, after, limit)
+	s.respond(w, out, e)
 }

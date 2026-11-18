@@ -34,7 +34,7 @@ Backlog 返回待发终止通知和各类到期清理的最早到期时间与滞
 
 ## 接口与检查
 
-接口定义见 [OpenAPI](contracts/open-platform.openapi.json)，生成客户端位于 sdk。运行 `make generate` 更新客户端，`make check` 检查生成一致性、仓库边界、文档、竞态与真实 PostgreSQL。
+接口定义见 [OpenAPI](contracts/open-platform.openapi.json)，公共错误响应与参数集中在 components 复用，生成客户端位于 sdk，服务端接口与路由契约位于 httpapi。运行 `make generate` 更新生成代码，`make check` 检查生成一致性、仓库边界、文档、竞态与真实 PostgreSQL。
 
 检查需要 STUHELPER_OPEN_PLATFORM_TEST_DSN 指向隔离测试服务器。CI 使用最新稳定 PostgreSQL。业务与清理运行身份仅获得本 schema 的表权限，requests、events 和 tokens 允许 SELECT、INSERT、DELETE，禁止 UPDATE，序列只允许 USAGE。
 
