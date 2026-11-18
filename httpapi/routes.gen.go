@@ -7,20 +7,23 @@ type routeSpec struct {
 }
 
 var contractRoutes = map[string]routeSpec{
-	"GET /api/v1/open-platform/admin/apps":                         {queryParams: []string{"after", "limit"}, idempotent: false},
+	"GET /api/v1/open-platform/admin/apps":                         {queryParams: []string{"after", "limit", "owner", "state"}, idempotent: false},
+	"GET /api/v1/open-platform/admin/apps/{id}":                    {queryParams: []string{}, idempotent: false},
 	"POST /api/v1/open-platform/admin/apps/{id}/review":            {queryParams: []string{}, idempotent: true},
+	"GET /api/v1/open-platform/admin/notices/overdue":              {queryParams: []string{"after", "limit", "older_than_days"}, idempotent: false},
 	"GET /api/v1/open-platform/apps":                               {queryParams: []string{"after", "limit"}, idempotent: false},
 	"POST /api/v1/open-platform/apps":                              {queryParams: []string{}, idempotent: true},
 	"GET /api/v1/open-platform/apps/{id}":                          {queryParams: []string{}, idempotent: false},
+	"POST /api/v1/open-platform/apps/{id}/archive":                 {queryParams: []string{}, idempotent: true},
 	"POST /api/v1/open-platform/apps/{id}/credential":              {queryParams: []string{}, idempotent: true},
-	"GET /api/v1/open-platform/apps/{id}/notices":                  {queryParams: []string{"after", "limit"}, idempotent: false},
+	"GET /api/v1/open-platform/apps/{id}/notices":                  {queryParams: []string{"after", "limit", "pending_ack"}, idempotent: false},
 	"POST /api/v1/open-platform/apps/{id}/notices/{notice_id}/ack": {queryParams: []string{}, idempotent: true},
 	"POST /api/v1/open-platform/apps/{id}/submit":                  {queryParams: []string{}, idempotent: true},
 	"POST /api/v1/open-platform/consents":                          {queryParams: []string{}, idempotent: true},
 	"GET /api/v1/open-platform/consents/{id}":                      {queryParams: []string{}, idempotent: false},
 	"POST /api/v1/open-platform/consents/{id}/decision":            {queryParams: []string{}, idempotent: true},
 	"GET /api/v1/open-platform/data/{scope}":                       {queryParams: []string{"after", "id", "kind", "limit", "query", "target_id", "term_id"}, idempotent: false},
-	"GET /api/v1/open-platform/grants":                             {queryParams: []string{"after", "limit"}, idempotent: false},
+	"GET /api/v1/open-platform/grants":                             {queryParams: []string{"after", "limit", "state"}, idempotent: false},
 	"POST /api/v1/open-platform/grants/{id}/revoke":                {queryParams: []string{}, idempotent: true},
 	"POST /api/v1/open-platform/token":                             {queryParams: []string{}, idempotent: false},
 }

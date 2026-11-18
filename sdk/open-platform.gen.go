@@ -41,6 +41,48 @@ func (e AcknowledgementStatus) Valid() bool {
 	}
 }
 
+// Defines values for AdminApplicationClientType.
+const (
+	AdminApplicationClientTypeConfidential AdminApplicationClientType = "confidential"
+	AdminApplicationClientTypePublic       AdminApplicationClientType = "public"
+)
+
+// Valid indicates whether the value is a known member of the AdminApplicationClientType enum.
+func (e AdminApplicationClientType) Valid() bool {
+	switch e {
+	case AdminApplicationClientTypeConfidential:
+		return true
+	case AdminApplicationClientTypePublic:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminApplicationState.
+const (
+	AdminApplicationStateActive           AdminApplicationState = "active"
+	AdminApplicationStateChangesRequested AdminApplicationState = "changes_requested"
+	AdminApplicationStatePending          AdminApplicationState = "pending"
+	AdminApplicationStateSuspended        AdminApplicationState = "suspended"
+)
+
+// Valid indicates whether the value is a known member of the AdminApplicationState enum.
+func (e AdminApplicationState) Valid() bool {
+	switch e {
+	case AdminApplicationStateActive:
+		return true
+	case AdminApplicationStateChangesRequested:
+		return true
+	case AdminApplicationStatePending:
+		return true
+	case AdminApplicationStateSuspended:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ApplicationClientType.
 const (
 	ApplicationClientTypeConfidential ApplicationClientType = "confidential"
@@ -119,6 +161,24 @@ func (e ConsentQqTiers) Valid() bool {
 	}
 }
 
+// Defines values for ConsentApplicationClientType.
+const (
+	ConsentApplicationClientTypeConfidential ConsentApplicationClientType = "confidential"
+	ConsentApplicationClientTypePublic       ConsentApplicationClientType = "public"
+)
+
+// Valid indicates whether the value is a known member of the ConsentApplicationClientType enum.
+func (e ConsentApplicationClientType) Valid() bool {
+	switch e {
+	case ConsentApplicationClientTypeConfidential:
+		return true
+	case ConsentApplicationClientTypePublic:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConsentDecisionDecision.
 const (
 	ConsentDecisionDecisionApprove ConsentDecisionDecision = "approve"
@@ -131,6 +191,24 @@ func (e ConsentDecisionDecision) Valid() bool {
 	case ConsentDecisionDecisionApprove:
 		return true
 	case ConsentDecisionDecisionDeny:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConsentDecisionMode.
+const (
+	Merge   ConsentDecisionMode = "merge"
+	Replace ConsentDecisionMode = "replace"
+)
+
+// Valid indicates whether the value is a known member of the ConsentDecisionMode enum.
+func (e ConsentDecisionMode) Valid() bool {
+	switch e {
+	case Merge:
+		return true
+	case Replace:
 		return true
 	default:
 		return false
@@ -170,6 +248,30 @@ func (e GrantState) Valid() bool {
 	}
 }
 
+// Defines values for GrantTerminationReason.
+const (
+	GrantTerminationReasonAccountClosed      GrantTerminationReason = "account_closed"
+	GrantTerminationReasonApplicationChanged GrantTerminationReason = "application_changed"
+	GrantTerminationReasonExpired            GrantTerminationReason = "expired"
+	GrantTerminationReasonUserRevoked        GrantTerminationReason = "user_revoked"
+)
+
+// Valid indicates whether the value is a known member of the GrantTerminationReason enum.
+func (e GrantTerminationReason) Valid() bool {
+	switch e {
+	case GrantTerminationReasonAccountClosed:
+		return true
+	case GrantTerminationReasonApplicationChanged:
+		return true
+	case GrantTerminationReasonExpired:
+		return true
+	case GrantTerminationReasonUserRevoked:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for NoticeAcknowledgement.
 const (
 	NoticeAcknowledgementDeleted            NoticeAcknowledgement = "deleted"
@@ -193,25 +295,25 @@ func (e NoticeAcknowledgement) Valid() bool {
 
 // Defines values for NoticeReason.
 const (
-	AccountClosed      NoticeReason = "account_closed"
-	ApplicationChanged NoticeReason = "application_changed"
-	ConsentChanged     NoticeReason = "consent_changed"
-	Expired            NoticeReason = "expired"
-	UserRevoked        NoticeReason = "user_revoked"
+	NoticeReasonAccountClosed      NoticeReason = "account_closed"
+	NoticeReasonApplicationChanged NoticeReason = "application_changed"
+	NoticeReasonConsentChanged     NoticeReason = "consent_changed"
+	NoticeReasonExpired            NoticeReason = "expired"
+	NoticeReasonUserRevoked        NoticeReason = "user_revoked"
 )
 
 // Valid indicates whether the value is a known member of the NoticeReason enum.
 func (e NoticeReason) Valid() bool {
 	switch e {
-	case AccountClosed:
+	case NoticeReasonAccountClosed:
 		return true
-	case ApplicationChanged:
+	case NoticeReasonApplicationChanged:
 		return true
-	case ConsentChanged:
+	case NoticeReasonConsentChanged:
 		return true
-	case Expired:
+	case NoticeReasonExpired:
 		return true
-	case UserRevoked:
+	case NoticeReasonUserRevoked:
 		return true
 	default:
 		return false
@@ -236,6 +338,87 @@ func (e OAuthProblemError) Valid() bool {
 	case InvalidRequest:
 		return true
 	case TemporarilyUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OverdueNoticeApplicationState.
+const (
+	OverdueNoticeApplicationStateActive           OverdueNoticeApplicationState = "active"
+	OverdueNoticeApplicationStateChangesRequested OverdueNoticeApplicationState = "changes_requested"
+	OverdueNoticeApplicationStatePending          OverdueNoticeApplicationState = "pending"
+	OverdueNoticeApplicationStateSuspended        OverdueNoticeApplicationState = "suspended"
+)
+
+// Valid indicates whether the value is a known member of the OverdueNoticeApplicationState enum.
+func (e OverdueNoticeApplicationState) Valid() bool {
+	switch e {
+	case OverdueNoticeApplicationStateActive:
+		return true
+	case OverdueNoticeApplicationStateChangesRequested:
+		return true
+	case OverdueNoticeApplicationStatePending:
+		return true
+	case OverdueNoticeApplicationStateSuspended:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProblemReason.
+const (
+	ProblemReasonAccountClosed              ProblemReason = "account_closed"
+	ProblemReasonAdminRequired              ProblemReason = "admin_required"
+	ProblemReasonApplicationInactive        ProblemReason = "application_inactive"
+	ProblemReasonApplicationLimitReached    ProblemReason = "application_limit_reached"
+	ProblemReasonApplicationRevisionChanged ProblemReason = "application_revision_changed"
+	ProblemReasonConsentAlreadyDecided      ProblemReason = "consent_already_decided"
+	ProblemReasonConsentExpired             ProblemReason = "consent_expired"
+	ProblemReasonContentAdmissionDenied     ProblemReason = "content_admission_denied"
+	ProblemReasonDailyQuotaExceeded         ProblemReason = "daily_quota_exceeded"
+	ProblemReasonIdempotencyConflict        ProblemReason = "idempotency_conflict"
+	ProblemReasonPendingConsentLimitReached ProblemReason = "pending_consent_limit_reached"
+	ProblemReasonRedirectUriMismatch        ProblemReason = "redirect_uri_mismatch"
+	ProblemReasonRevisionMismatch           ProblemReason = "revision_mismatch"
+	ProblemReasonScopeNotAuthorized         ProblemReason = "scope_not_authorized"
+	ProblemReasonStateConflict              ProblemReason = "state_conflict"
+)
+
+// Valid indicates whether the value is a known member of the ProblemReason enum.
+func (e ProblemReason) Valid() bool {
+	switch e {
+	case ProblemReasonAccountClosed:
+		return true
+	case ProblemReasonAdminRequired:
+		return true
+	case ProblemReasonApplicationInactive:
+		return true
+	case ProblemReasonApplicationLimitReached:
+		return true
+	case ProblemReasonApplicationRevisionChanged:
+		return true
+	case ProblemReasonConsentAlreadyDecided:
+		return true
+	case ProblemReasonConsentExpired:
+		return true
+	case ProblemReasonContentAdmissionDenied:
+		return true
+	case ProblemReasonDailyQuotaExceeded:
+		return true
+	case ProblemReasonIdempotencyConflict:
+		return true
+	case ProblemReasonPendingConsentLimitReached:
+		return true
+	case ProblemReasonRedirectUriMismatch:
+		return true
+	case ProblemReasonRevisionMismatch:
+		return true
+	case ProblemReasonScopeNotAuthorized:
+		return true
+	case ProblemReasonStateConflict:
 		return true
 	default:
 		return false
@@ -329,6 +512,48 @@ func (e TokenInputGrantType) Valid() bool {
 	}
 }
 
+// Defines values for ListApplicationsParamsState.
+const (
+	ListApplicationsParamsStateActive           ListApplicationsParamsState = "active"
+	ListApplicationsParamsStateChangesRequested ListApplicationsParamsState = "changes_requested"
+	ListApplicationsParamsStatePending          ListApplicationsParamsState = "pending"
+	ListApplicationsParamsStateSuspended        ListApplicationsParamsState = "suspended"
+)
+
+// Valid indicates whether the value is a known member of the ListApplicationsParamsState enum.
+func (e ListApplicationsParamsState) Valid() bool {
+	switch e {
+	case ListApplicationsParamsStateActive:
+		return true
+	case ListApplicationsParamsStateChangesRequested:
+		return true
+	case ListApplicationsParamsStatePending:
+		return true
+	case ListApplicationsParamsStateSuspended:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListOwnGrantsParamsState.
+const (
+	ListOwnGrantsParamsStateActive  ListOwnGrantsParamsState = "active"
+	ListOwnGrantsParamsStateRevoked ListOwnGrantsParamsState = "revoked"
+)
+
+// Valid indicates whether the value is a known member of the ListOwnGrantsParamsState enum.
+func (e ListOwnGrantsParamsState) Valid() bool {
+	switch e {
+	case ListOwnGrantsParamsStateActive:
+		return true
+	case ListOwnGrantsParamsStateRevoked:
+		return true
+	default:
+		return false
+	}
+}
+
 // Acknowledgement defines model for Acknowledgement.
 type Acknowledgement struct {
 	Note   string                `json:"note"`
@@ -338,9 +563,51 @@ type Acknowledgement struct {
 // AcknowledgementStatus defines model for Acknowledgement.Status.
 type AcknowledgementStatus string
 
+// AdminApplication defines model for AdminApplication.
+type AdminApplication struct {
+	// ActiveGrants 当前仍处于有效期的用户授权数量。
+	ActiveGrants       int                        `json:"active_grants"`
+	ApprovedScopes     []Scope                    `json:"approved_scopes"`
+	ClientType         AdminApplicationClientType `json:"client_type"`
+	CreatedAt          time.Time                  `json:"created_at"`
+	CredentialRevision int64                      `json:"credential_revision"`
+	Id                 string                     `json:"id"`
+	Name               string                     `json:"name"`
+	Note               string                     `json:"note"`
+	Owner              string                     `json:"owner"`
+	Policy             Policy                     `json:"policy"`
+	Purpose            string                     `json:"purpose"`
+	RedirectUris       []string                   `json:"redirect_uris"`
+	RequestedScopes    []Scope                    `json:"requested_scopes"`
+
+	// ReviewedAt 最近一次执行审批或停用操作的时间。
+	ReviewedAt *time.Time `json:"reviewed_at,omitempty"`
+
+	// ReviewedBy 最近一次执行审批或停用操作的管理员账号标识。
+	ReviewedBy *string               `json:"reviewed_by,omitempty"`
+	Revision   int64                 `json:"revision"`
+	State      AdminApplicationState `json:"state"`
+	UpdatedAt  time.Time             `json:"updated_at"`
+}
+
+// AdminApplicationClientType defines model for AdminApplication.ClientType.
+type AdminApplicationClientType string
+
+// AdminApplicationState defines model for AdminApplication.State.
+type AdminApplicationState string
+
+// AdminApplications defines model for AdminApplications.
+type AdminApplications struct {
+	Items []AdminApplication `json:"items"`
+	Next  *string            `json:"next,omitempty"`
+}
+
 // Application defines model for Application.
 type Application struct {
-	ApprovedScopes     []Scope               `json:"approved_scopes"`
+	ApprovedScopes []Scope `json:"approved_scopes"`
+
+	// ArchivedAt 开发者主动归档应用的时间；归档满 12 个月后随数据保留清理释放配额。
+	ArchivedAt         *time.Time            `json:"archived_at,omitempty"`
 	ClientType         ApplicationClientType `json:"client_type"`
 	CreatedAt          time.Time             `json:"created_at"`
 	CredentialRevision int64                 `json:"credential_revision"`
@@ -349,10 +616,13 @@ type Application struct {
 	Note               string                `json:"note"`
 	Policy             Policy                `json:"policy"`
 	Purpose            string                `json:"purpose"`
-	RedirectUris       []string              `json:"redirect_uris"`
-	RequestedScopes    []Scope               `json:"requested_scopes"`
-	Revision           int64                 `json:"revision"`
-	State              ApplicationState      `json:"state"`
+
+	// QuotaUsed 应用在当前 UTC 日已消耗的数据读取配额；查看本人单应用详情时返回。
+	QuotaUsed       *int             `json:"quota_used,omitempty"`
+	RedirectUris    []string         `json:"redirect_uris"`
+	RequestedScopes []Scope          `json:"requested_scopes"`
+	Revision        int64            `json:"revision"`
+	State           ApplicationState `json:"state"`
 }
 
 // ApplicationClientType defines model for Application.ClientType.
@@ -400,9 +670,16 @@ type CatalogItem struct {
 
 // Consent defines model for Consent.
 type Consent struct {
-	Application Application `json:"application"`
-	ExpiresAt   time.Time   `json:"expires_at"`
-	Id          string      `json:"id"`
+	// ActiveGrantExpiresAt 当前有效授权的到期时间；无有效授权时省略。
+	ActiveGrantExpiresAt *time.Time `json:"active_grant_expires_at,omitempty"`
+
+	// ActiveGrantedScopes 当前用户对该应用仍处于有效期的已授权范围；无有效授权时为空数组。
+	ActiveGrantedScopes []Scope `json:"active_granted_scopes"`
+
+	// Application 面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。
+	Application ConsentApplication `json:"application"`
+	ExpiresAt   time.Time          `json:"expires_at"`
+	Id          string             `json:"id"`
 
 	// QqTiers Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested.
 	QqTiers         []ConsentQqTiers `json:"qq_tiers"`
@@ -413,14 +690,32 @@ type Consent struct {
 // ConsentQqTiers defines model for Consent.QqTiers.
 type ConsentQqTiers string
 
+// ConsentApplication 面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。
+type ConsentApplication struct {
+	ClientType   ConsentApplicationClientType `json:"client_type"`
+	GrantSeconds int                          `json:"grant_seconds"`
+	Id           string                       `json:"id"`
+	Name         string                       `json:"name"`
+	Purpose      string                       `json:"purpose"`
+}
+
+// ConsentApplicationClientType defines model for ConsentApplication.ClientType.
+type ConsentApplicationClientType string
+
 // ConsentDecision defines model for ConsentDecision.
 type ConsentDecision struct {
 	Decision ConsentDecisionDecision `json:"decision"`
-	Scopes   []Scope                 `json:"scopes"`
+
+	// Mode 同意时的范围合并方式：merge 保留当前仍有效且获批的既有范围并与本次勾选范围求并集；replace 仅保留本次勾选范围并对移除范围生成停止使用通知。
+	Mode   *ConsentDecisionMode `json:"mode,omitempty"`
+	Scopes []Scope              `json:"scopes"`
 }
 
 // ConsentDecisionDecision defines model for ConsentDecision.Decision.
 type ConsentDecisionDecision string
+
+// ConsentDecisionMode 同意时的范围合并方式：merge 保留当前仍有效且获批的既有范围并与本次勾选范围求并集；replace 仅保留本次勾选范围并对移除范围生成停止使用通知。
+type ConsentDecisionMode string
 
 // ConsentInput defines model for ConsentInput.
 type ConsentInput struct {
@@ -463,18 +758,29 @@ type Data struct {
 
 // Grant defines model for Grant.
 type Grant struct {
-	AppId     string     `json:"app_id"`
-	AppName   string     `json:"app_name"`
-	ExpiresAt time.Time  `json:"expires_at"`
-	Id        string     `json:"id"`
-	Revision  int64      `json:"revision"`
-	Scopes    []Scope    `json:"scopes"`
-	State     GrantState `json:"state"`
-	Subject   string     `json:"subject"`
+	AppId     string    `json:"app_id"`
+	AppName   string    `json:"app_name"`
+	ExpiresAt time.Time `json:"expires_at"`
+	GrantedAt time.Time `json:"granted_at"`
+	Id        string    `json:"id"`
+
+	// LastDataReadAt 最近一次向该应用返回业务数据的时间；尚未读取时省略。
+	LastDataReadAt *time.Time `json:"last_data_read_at,omitempty"`
+	Revision       int64      `json:"revision"`
+	Scopes         []Scope    `json:"scopes"`
+	State          GrantState `json:"state"`
+	Subject        string     `json:"subject"`
+
+	// TerminationReason 授权已失效时的终止原因；当前有效授权省略该字段。
+	TerminationReason *GrantTerminationReason `json:"termination_reason,omitempty"`
+	UpdatedAt         time.Time               `json:"updated_at"`
 }
 
 // GrantState defines model for Grant.State.
 type GrantState string
+
+// GrantTerminationReason 授权已失效时的终止原因；当前有效授权省略该字段。
+type GrantTerminationReason string
 
 // Grants defines model for Grants.
 type Grants struct {
@@ -517,6 +823,25 @@ type OAuthProblem struct {
 // OAuthProblemError defines model for OAuthProblem.Error.
 type OAuthProblemError string
 
+// OverdueNoticeApplication defines model for OverdueNoticeApplication.
+type OverdueNoticeApplication struct {
+	AppId          string                        `json:"app_id"`
+	AppName        string                        `json:"app_name"`
+	OldestNoticeAt time.Time                     `json:"oldest_notice_at"`
+	OverdueNotices int                           `json:"overdue_notices"`
+	Owner          string                        `json:"owner"`
+	State          OverdueNoticeApplicationState `json:"state"`
+}
+
+// OverdueNoticeApplicationState defines model for OverdueNoticeApplication.State.
+type OverdueNoticeApplicationState string
+
+// OverdueNoticeApplications defines model for OverdueNoticeApplications.
+type OverdueNoticeApplications struct {
+	Items []OverdueNoticeApplication `json:"items"`
+	Next  *string                    `json:"next,omitempty"`
+}
+
 // Policy defines model for Policy.
 type Policy struct {
 	DailyQuota   int `json:"daily_quota"`
@@ -527,7 +852,13 @@ type Policy struct {
 // Problem defines model for Problem.
 type Problem struct {
 	Code string `json:"code"`
+
+	// Reason 机器可读的细分错误原因码，用于多语言界面展示精准恢复指引。
+	Reason *ProblemReason `json:"reason,omitempty"`
 }
+
+// ProblemReason 机器可读的细分错误原因码，用于多语言界面展示精准恢复指引。
+type ProblemReason string
 
 // Profile defines model for Profile.
 type Profile struct {
@@ -564,6 +895,9 @@ type ReviewItem struct {
 	Kind      string    `json:"kind"`
 	Ratings   []int     `json:"ratings"`
 	TargetId  string    `json:"target_id"`
+
+	// TermId 评价关联的修读学期标识；导师评价或未指定学期时省略。
+	TermId *string `json:"term_id,omitempty"`
 }
 
 // Revision defines model for Revision.
@@ -573,8 +907,11 @@ type Revision struct {
 
 // RevokeInput defines model for RevokeInput.
 type RevokeInput struct {
-	Revision int64   `json:"revision"`
-	Scopes   []Scope `json:"scopes"`
+	Revision int64 `json:"revision"`
+
+	// RevokeAll 为 true 时直接撤回整单当前活跃授权，无需传入 scopes。
+	RevokeAll *bool    `json:"revoke_all,omitempty"`
+	Scopes    *[]Scope `json:"scopes,omitempty"`
 }
 
 // ScheduleItem defines model for ScheduleItem.
@@ -699,6 +1036,12 @@ type Unavailable = Problem
 
 // ListApplicationsParams defines parameters for ListApplications.
 type ListApplicationsParams struct {
+	// State 按应用审批状态筛选。
+	State *ListApplicationsParamsState `form:"state,omitempty" json:"state,omitempty"`
+
+	// Owner 按开发者账号标识精确筛选。
+	Owner *string `form:"owner,omitempty" json:"owner,omitempty"`
+
 	// After 上一页返回的游标，省略时从首页开始读取。
 	After *PageAfter `form:"after,omitempty" json:"after,omitempty"`
 
@@ -706,10 +1049,21 @@ type ListApplicationsParams struct {
 	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// ListApplicationsParamsState defines parameters for ListApplications.
+type ListApplicationsParamsState string
+
 // ReviewApplicationParams defines parameters for ReviewApplication.
 type ReviewApplicationParams struct {
 	// IdempotencyKey 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// ListOverdueNoticeApplicationsParams defines parameters for ListOverdueNoticeApplications.
+type ListOverdueNoticeApplicationsParams struct {
+	// OlderThanDays 判定为逾期的最小天数。
+	OlderThanDays *int    `form:"older_than_days,omitempty" json:"older_than_days,omitempty"`
+	After         *string `form:"after,omitempty" json:"after,omitempty"`
+	Limit         *int    `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // ListOwnApplicationsParams defines parameters for ListOwnApplications.
@@ -727,6 +1081,11 @@ type CreateApplicationParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
+// ArchiveApplicationParams defines parameters for ArchiveApplication.
+type ArchiveApplicationParams struct {
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
 // RotateClientCredentialParams defines parameters for RotateClientCredential.
 type RotateClientCredentialParams struct {
 	// IdempotencyKey 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。
@@ -735,6 +1094,9 @@ type RotateClientCredentialParams struct {
 
 // ListNoticesParams defines parameters for ListNotices.
 type ListNoticesParams struct {
+	// PendingAck 为 true 时仅返回尚未回报 deleted 或 retention_exception 的通知。
+	PendingAck *bool `form:"pending_ack,omitempty" json:"pending_ack,omitempty"`
+
 	// After 上一页返回的游标，省略时从首页开始读取。
 	After *PageAfter `form:"after,omitempty" json:"after,omitempty"`
 
@@ -792,12 +1154,18 @@ type ReadAuthorizedDataParams struct {
 
 // ListOwnGrantsParams defines parameters for ListOwnGrants.
 type ListOwnGrantsParams struct {
+	// State 按当前有效状态筛选授权列表。
+	State *ListOwnGrantsParamsState `form:"state,omitempty" json:"state,omitempty"`
+
 	// After 上一页返回的游标，省略时从首页开始读取。
 	After *PageAfter `form:"after,omitempty" json:"after,omitempty"`
 
 	// Limit 单页最多返回条数（1–100，默认 50）。
 	Limit *PageLimit `form:"limit,omitempty" json:"limit,omitempty"`
 }
+
+// ListOwnGrantsParamsState defines parameters for ListOwnGrants.
+type ListOwnGrantsParamsState string
 
 // RevokeScopesParams defines parameters for RevokeScopes.
 type RevokeScopesParams struct {
@@ -810,6 +1178,9 @@ type ReviewApplicationJSONRequestBody = ReviewInput
 
 // CreateApplicationJSONRequestBody defines body for CreateApplication for application/json ContentType.
 type CreateApplicationJSONRequestBody = ApplicationInput
+
+// ArchiveApplicationJSONRequestBody defines body for ArchiveApplication for application/json ContentType.
+type ArchiveApplicationJSONRequestBody = Revision
 
 // RotateClientCredentialJSONRequestBody defines body for RotateClientCredential for application/json ContentType.
 type RotateClientCredentialJSONRequestBody = Revision
@@ -907,7 +1278,14 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 type ClientInterface interface {
 
 	// ListApplications performs a GET /api/v1/open-platform/admin/apps (the `ListApplications` operationId) request.
+	//
+	// 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。.
 	ListApplications(ctx context.Context, params *ListApplicationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAdminApplication performs a GET /api/v1/open-platform/admin/apps/{id} (the `GetAdminApplication` operationId) request.
+	//
+	// 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。.
+	GetAdminApplication(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReviewApplicationWithBody performs a POST /api/v1/open-platform/admin/apps/{id}/review (the `ReviewApplication` operationId) request,
 	// with any type of body and a specified content type.
@@ -920,6 +1298,11 @@ type ClientInterface interface {
 	//
 	// 审批范围必须是申请范围子集。每次管理变更使旧授权失效，通知分页处理。.
 	ReviewApplication(ctx context.Context, id ResourceIdPath, params *ReviewApplicationParams, body ReviewApplicationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListOverdueNoticeApplications performs a GET /api/v1/open-platform/admin/notices/overdue (the `ListOverdueNoticeApplications` operationId) request.
+	//
+	// 管理后台巡检超过约定天数仍未提交 deleted 或 retention_exception 回执的应用列表，按最早逾期通知时间升序分页。.
+	ListOverdueNoticeApplications(ctx context.Context, params *ListOverdueNoticeApplicationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListOwnApplications performs a GET /api/v1/open-platform/apps (the `ListOwnApplications` operationId) request.
 	ListOwnApplications(ctx context.Context, params *ListOwnApplicationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -939,6 +1322,18 @@ type ClientInterface interface {
 	// GetOwnApplication performs a GET /api/v1/open-platform/apps/{id} (the `GetOwnApplication` operationId) request.
 	GetOwnApplication(ctx context.Context, id ResourceIdPath, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ArchiveApplicationWithBody performs a POST /api/v1/open-platform/apps/{id}/archive (the `ArchiveApplication` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// 开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。.
+	ArchiveApplicationWithBody(ctx context.Context, id string, params *ArchiveApplicationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ArchiveApplication performs a POST /api/v1/open-platform/apps/{id}/archive (the `ArchiveApplication` operationId) request.
+	// Takes a body of the `application/json` content type.
+	//
+	// 开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。.
+	ArchiveApplication(ctx context.Context, id string, params *ArchiveApplicationParams, body ArchiveApplicationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RotateClientCredentialWithBody performs a POST /api/v1/open-platform/apps/{id}/credential (the `RotateClientCredential` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -953,7 +1348,7 @@ type ClientInterface interface {
 
 	// ListNotices performs a GET /api/v1/open-platform/apps/{id}/notices (the `ListNotices` operationId) request.
 	//
-	// 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。停用后仍可查询；分页最多 100 条。.
+	// 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。支持 pending_ack 筛选尚未提交删除或法定保留声明的通知。停用或归档后仍可查询；分页最多 100 条。.
 	ListNotices(ctx context.Context, id ResourceIdPath, params *ListNoticesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AcknowledgeNoticeWithBody performs a POST /api/v1/open-platform/apps/{id}/notices/{notice_id}/ack (the `AcknowledgeNotice` operationId) request,
@@ -1009,22 +1404,24 @@ type ClientInterface interface {
 
 	// ReadAuthorizedData performs a GET /api/v1/open-platform/data/{scope} (the `ReadAuthorizedData` operationId) request.
 	//
-	// 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。.
+	// 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额并通过响应头返回余量，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。.
 	ReadAuthorizedData(ctx context.Context, scope ScopePath, params *ReadAuthorizedDataParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListOwnGrants performs a GET /api/v1/open-platform/grants (the `ListOwnGrants` operationId) request.
+	//
+	// 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。.
 	ListOwnGrants(ctx context.Context, params *ListOwnGrantsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RevokeScopesWithBody performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+	// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 	RevokeScopesWithBody(ctx context.Context, id ResourceIdPath, params *RevokeScopesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RevokeScopes performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request.
 	// Takes a body of the `application/json` content type.
 	//
-	// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+	// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 	RevokeScopes(ctx context.Context, id ResourceIdPath, params *RevokeScopesParams, body RevokeScopesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ExchangeCodeWithBody performs a POST /api/v1/open-platform/token (the `ExchangeCode` operationId) request,
@@ -1041,8 +1438,25 @@ type ClientInterface interface {
 }
 
 // ListApplications performs a GET /api/v1/open-platform/admin/apps (the `ListApplications` operationId) request.
+//
+// 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。.
 func (c *Client) ListApplications(ctx context.Context, params *ListApplicationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListApplicationsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetAdminApplication performs a GET /api/v1/open-platform/admin/apps/{id} (the `GetAdminApplication` operationId) request.
+//
+// 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。.
+func (c *Client) GetAdminApplication(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminApplicationRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1075,6 +1489,21 @@ func (c *Client) ReviewApplicationWithBody(ctx context.Context, id ResourceIdPat
 // 审批范围必须是申请范围子集。每次管理变更使旧授权失效，通知分页处理。.
 func (c *Client) ReviewApplication(ctx context.Context, id ResourceIdPath, params *ReviewApplicationParams, body ReviewApplicationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReviewApplicationRequest(c.Server, id, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListOverdueNoticeApplications performs a GET /api/v1/open-platform/admin/notices/overdue (the `ListOverdueNoticeApplications` operationId) request.
+//
+// 管理后台巡检超过约定天数仍未提交 deleted 或 retention_exception 回执的应用列表，按最早逾期通知时间升序分页。.
+func (c *Client) ListOverdueNoticeApplications(ctx context.Context, params *ListOverdueNoticeApplicationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListOverdueNoticeApplicationsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1143,6 +1572,38 @@ func (c *Client) GetOwnApplication(ctx context.Context, id ResourceIdPath, reqEd
 	return c.Client.Do(req)
 }
 
+// ArchiveApplicationWithBody performs a POST /api/v1/open-platform/apps/{id}/archive (the `ArchiveApplication` operationId) request,
+// with any type of body and a specified content type.
+//
+// 开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。.
+func (c *Client) ArchiveApplicationWithBody(ctx context.Context, id string, params *ArchiveApplicationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewArchiveApplicationRequestWithBody(c.Server, id, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ArchiveApplication performs a POST /api/v1/open-platform/apps/{id}/archive (the `ArchiveApplication` operationId) request.
+// Takes a body of the `application/json` content type.
+//
+// 开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。.
+func (c *Client) ArchiveApplication(ctx context.Context, id string, params *ArchiveApplicationParams, body ArchiveApplicationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewArchiveApplicationRequest(c.Server, id, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RotateClientCredentialWithBody performs a POST /api/v1/open-platform/apps/{id}/credential (the `RotateClientCredential` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -1177,7 +1638,7 @@ func (c *Client) RotateClientCredential(ctx context.Context, id ResourceIdPath, 
 
 // ListNotices performs a GET /api/v1/open-platform/apps/{id}/notices (the `ListNotices` operationId) request.
 //
-// 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。停用后仍可查询；分页最多 100 条。.
+// 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。支持 pending_ack 筛选尚未提交删除或法定保留声明的通知。停用或归档后仍可查询；分页最多 100 条。.
 func (c *Client) ListNotices(ctx context.Context, id ResourceIdPath, params *ListNoticesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListNoticesRequest(c.Server, id, params)
 	if err != nil {
@@ -1333,7 +1794,7 @@ func (c *Client) DecideConsent(ctx context.Context, id ResourceIdPath, params *D
 
 // ReadAuthorizedData performs a GET /api/v1/open-platform/data/{scope} (the `ReadAuthorizedData` operationId) request.
 //
-// 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。.
+// 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额并通过响应头返回余量，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。.
 func (c *Client) ReadAuthorizedData(ctx context.Context, scope ScopePath, params *ReadAuthorizedDataParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadAuthorizedDataRequest(c.Server, scope, params)
 	if err != nil {
@@ -1347,6 +1808,8 @@ func (c *Client) ReadAuthorizedData(ctx context.Context, scope ScopePath, params
 }
 
 // ListOwnGrants performs a GET /api/v1/open-platform/grants (the `ListOwnGrants` operationId) request.
+//
+// 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。.
 func (c *Client) ListOwnGrants(ctx context.Context, params *ListOwnGrantsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListOwnGrantsRequest(c.Server, params)
 	if err != nil {
@@ -1362,7 +1825,7 @@ func (c *Client) ListOwnGrants(ctx context.Context, params *ListOwnGrantsParams,
 // RevokeScopesWithBody performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request,
 // with any type of body and a specified content type.
 //
-// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 func (c *Client) RevokeScopesWithBody(ctx context.Context, id ResourceIdPath, params *RevokeScopesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeScopesRequestWithBody(c.Server, id, params, contentType, body)
 	if err != nil {
@@ -1378,7 +1841,7 @@ func (c *Client) RevokeScopesWithBody(ctx context.Context, id ResourceIdPath, pa
 // RevokeScopes performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request.
 // Takes a body of the `application/json` content type.
 //
-// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 func (c *Client) RevokeScopes(ctx context.Context, id ResourceIdPath, params *RevokeScopesParams, body RevokeScopesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeScopesRequest(c.Server, id, params, body)
 	if err != nil {
@@ -1451,6 +1914,30 @@ func NewListApplicationsRequest(server string, params *ListApplicationsParams) (
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
+		if params.State != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "state", *params.State, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Owner != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "owner", *params.Owner, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if params.After != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "after", *params.After, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
@@ -1479,6 +1966,40 @@ func NewListApplicationsRequest(server string, params *ListApplicationsParams) (
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
 		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAdminApplicationRequest constructs an http.Request for the GetAdminApplication method
+func NewGetAdminApplicationRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/open-platform/admin/apps/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -1544,6 +2065,84 @@ func NewReviewApplicationRequestWithBody(server string, id ResourceIdPath, param
 
 		req.Header.Set("Idempotency-Key", headerParam0)
 
+	}
+
+	return req, nil
+}
+
+// NewListOverdueNoticeApplicationsRequest constructs an http.Request for the ListOverdueNoticeApplications method
+func NewListOverdueNoticeApplicationsRequest(server string, params *ListOverdueNoticeApplicationsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/open-platform/admin/notices/overdue")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.OlderThanDays != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "older_than_days", *params.OlderThanDays, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.After != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "after", *params.After, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -1702,6 +2301,66 @@ func NewGetOwnApplicationRequest(server string, id ResourceIdPath) (*http.Reques
 	return req, nil
 }
 
+// NewArchiveApplicationRequest calls the generic ArchiveApplication builder with application/json body
+func NewArchiveApplicationRequest(server string, id string, params *ArchiveApplicationParams, body ArchiveApplicationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewArchiveApplicationRequestWithBody(server, id, params, "application/json", bodyReader)
+}
+
+// NewArchiveApplicationRequestWithBody constructs an http.Request for the ArchiveApplication method, with any body, and a specified content type
+func NewArchiveApplicationRequestWithBody(server string, id string, params *ArchiveApplicationParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "id", id, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/open-platform/apps/%s/archive", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("Idempotency-Key", headerParam0)
+
+	}
+
+	return req, nil
+}
+
 // NewRotateClientCredentialRequest calls the generic RotateClientCredential builder with application/json body
 func NewRotateClientCredentialRequest(server string, id ResourceIdPath, params *RotateClientCredentialParams, body RotateClientCredentialJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -1796,6 +2455,18 @@ func NewListNoticesRequest(server string, id ResourceIdPath, params *ListNotices
 		// styled parameters, preserving literal commas as delimiters
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
+
+		if params.PendingAck != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "pending_ack", *params.PendingAck, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
 
 		if params.After != nil {
 
@@ -2270,6 +2941,18 @@ func NewListOwnGrantsRequest(server string, params *ListOwnGrantsParams) (*http.
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
+		if params.State != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "state", *params.State, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if params.After != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "after", *params.After, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
@@ -2454,8 +3137,17 @@ type ClientWithResponsesInterface interface {
 
 	// ListApplicationsWithResponse performs a GET /api/v1/open-platform/admin/apps (the `ListApplications` operationId) request.
 	//
+	// 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	ListApplicationsWithResponse(ctx context.Context, params *ListApplicationsParams, reqEditors ...RequestEditorFn) (*ListApplicationsResponse, error)
+
+	// GetAdminApplicationWithResponse performs a GET /api/v1/open-platform/admin/apps/{id} (the `GetAdminApplication` operationId) request.
+	//
+	// 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetAdminApplicationWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetAdminApplicationResponse, error)
 
 	// ReviewApplicationWithBodyWithResponse performs a POST /api/v1/open-platform/admin/apps/{id}/review (the `ReviewApplication` operationId) request,
 	// with any type of body and a specified content type.
@@ -2470,6 +3162,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// 审批范围必须是申请范围子集。每次管理变更使旧授权失效，通知分页处理。.
 	ReviewApplicationWithResponse(ctx context.Context, id ResourceIdPath, params *ReviewApplicationParams, body ReviewApplicationJSONRequestBody, reqEditors ...RequestEditorFn) (*ReviewApplicationResponse, error)
+
+	// ListOverdueNoticeApplicationsWithResponse performs a GET /api/v1/open-platform/admin/notices/overdue (the `ListOverdueNoticeApplications` operationId) request.
+	//
+	// 管理后台巡检超过约定天数仍未提交 deleted 或 retention_exception 回执的应用列表，按最早逾期通知时间升序分页。.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListOverdueNoticeApplicationsWithResponse(ctx context.Context, params *ListOverdueNoticeApplicationsParams, reqEditors ...RequestEditorFn) (*ListOverdueNoticeApplicationsResponse, error)
 
 	// ListOwnApplicationsWithResponse performs a GET /api/v1/open-platform/apps (the `ListOwnApplications` operationId) request.
 	//
@@ -2495,6 +3194,20 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetOwnApplicationWithResponse(ctx context.Context, id ResourceIdPath, reqEditors ...RequestEditorFn) (*GetOwnApplicationResponse, error)
 
+	// ArchiveApplicationWithBodyWithResponse performs a POST /api/v1/open-platform/apps/{id}/archive (the `ArchiveApplication` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// 开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ArchiveApplicationWithBodyWithResponse(ctx context.Context, id string, params *ArchiveApplicationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ArchiveApplicationResponse, error)
+
+	// ArchiveApplicationWithResponse performs a POST /api/v1/open-platform/apps/{id}/archive (the `ArchiveApplication` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// 开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。.
+	ArchiveApplicationWithResponse(ctx context.Context, id string, params *ArchiveApplicationParams, body ArchiveApplicationJSONRequestBody, reqEditors ...RequestEditorFn) (*ArchiveApplicationResponse, error)
+
 	// RotateClientCredentialWithBodyWithResponse performs a POST /api/v1/open-platform/apps/{id}/credential (the `RotateClientCredential` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -2511,7 +3224,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListNoticesWithResponse performs a GET /api/v1/open-platform/apps/{id}/notices (the `ListNotices` operationId) request.
 	//
-	// 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。停用后仍可查询；分页最多 100 条。.
+	// 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。支持 pending_ack 筛选尚未提交删除或法定保留声明的通知。停用或归档后仍可查询；分页最多 100 条。.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	ListNoticesWithResponse(ctx context.Context, id ResourceIdPath, params *ListNoticesParams, reqEditors ...RequestEditorFn) (*ListNoticesResponse, error)
@@ -2579,12 +3292,14 @@ type ClientWithResponsesInterface interface {
 
 	// ReadAuthorizedDataWithResponse performs a GET /api/v1/open-platform/data/{scope} (the `ReadAuthorizedData` operationId) request.
 	//
-	// 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。.
+	// 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额并通过响应头返回余量，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	ReadAuthorizedDataWithResponse(ctx context.Context, scope ScopePath, params *ReadAuthorizedDataParams, reqEditors ...RequestEditorFn) (*ReadAuthorizedDataResponse, error)
 
 	// ListOwnGrantsWithResponse performs a GET /api/v1/open-platform/grants (the `ListOwnGrants` operationId) request.
+	//
+	// 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	ListOwnGrantsWithResponse(ctx context.Context, params *ListOwnGrantsParams, reqEditors ...RequestEditorFn) (*ListOwnGrantsResponse, error)
@@ -2592,7 +3307,7 @@ type ClientWithResponsesInterface interface {
 	// RevokeScopesWithBodyWithResponse performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+	// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	RevokeScopesWithBodyWithResponse(ctx context.Context, id ResourceIdPath, params *RevokeScopesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RevokeScopesResponse, error)
@@ -2600,7 +3315,7 @@ type ClientWithResponsesInterface interface {
 	// RevokeScopesWithResponse performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+	// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 	RevokeScopesWithResponse(ctx context.Context, id ResourceIdPath, params *RevokeScopesParams, body RevokeScopesJSONRequestBody, reqEditors ...RequestEditorFn) (*RevokeScopesResponse, error)
 
 	// ExchangeCodeWithBodyWithResponse performs a POST /api/v1/open-platform/token (the `ExchangeCode` operationId) request,
@@ -2618,11 +3333,16 @@ type ClientWithResponsesInterface interface {
 	ExchangeCodeWithFormdataBodyWithResponse(ctx context.Context, body ExchangeCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*ExchangeCodeResponse, error)
 }
 
+// ListApplicationsResponse429Headers the declared response headers of an HTTP 429 response for ListApplications
+type ListApplicationsResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ListApplicationsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *Applications
+	JSON200 *AdminApplications
 	// JSON400 the response for an HTTP 400 `application/json` response
 	JSON400 *BadRequest
 	// JSON401 the response for an HTTP 401 `application/json` response
@@ -2637,10 +3357,12 @@ type ListApplicationsResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ListApplicationsResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r ListApplicationsResponse) GetJSON200() *Applications {
+func (r ListApplicationsResponse) GetJSON200() *AdminApplications {
 	return r.JSON200
 }
 
@@ -2708,6 +3430,101 @@ func (r ListApplicationsResponse) ContentType() string {
 	return ""
 }
 
+type GetAdminApplicationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AdminApplication
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Problem
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Problem
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Problem
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Problem
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Problem
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *Problem
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON200() *AdminApplication {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON400() *Problem {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON401() *Problem {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON403() *Problem {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON404() *Problem {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON409() *Problem {
+	return r.JSON409
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON429() *Problem {
+	return r.JSON429
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetAdminApplicationResponse) GetJSON503() *Problem {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetAdminApplicationResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAdminApplicationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAdminApplicationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetAdminApplicationResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ReviewApplicationResponse429Headers the declared response headers of an HTTP 429 response for ReviewApplication
+type ReviewApplicationResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ReviewApplicationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2727,6 +3544,8 @@ type ReviewApplicationResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ReviewApplicationResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -2798,6 +3617,101 @@ func (r ReviewApplicationResponse) ContentType() string {
 	return ""
 }
 
+type ListOverdueNoticeApplicationsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OverdueNoticeApplications
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Problem
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Problem
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Problem
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Problem
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Problem
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *Problem
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListOverdueNoticeApplicationsResponse) GetJSON200() *OverdueNoticeApplications {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r ListOverdueNoticeApplicationsResponse) GetJSON400() *Problem {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListOverdueNoticeApplicationsResponse) GetJSON401() *Problem {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ListOverdueNoticeApplicationsResponse) GetJSON403() *Problem {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ListOverdueNoticeApplicationsResponse) GetJSON404() *Problem {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r ListOverdueNoticeApplicationsResponse) GetJSON409() *Problem {
+	return r.JSON409
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r ListOverdueNoticeApplicationsResponse) GetJSON429() *Problem {
+	return r.JSON429
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListOverdueNoticeApplicationsResponse) GetJSON503() *Problem {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListOverdueNoticeApplicationsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListOverdueNoticeApplicationsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListOverdueNoticeApplicationsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListOverdueNoticeApplicationsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ListOwnApplicationsResponse429Headers the declared response headers of an HTTP 429 response for ListOwnApplications
+type ListOwnApplicationsResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ListOwnApplicationsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2817,6 +3731,8 @@ type ListOwnApplicationsResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ListOwnApplicationsResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -2888,6 +3804,11 @@ func (r ListOwnApplicationsResponse) ContentType() string {
 	return ""
 }
 
+// CreateApplicationResponse429Headers the declared response headers of an HTTP 429 response for CreateApplication
+type CreateApplicationResponse429Headers struct {
+	RetryAfter *int
+}
+
 type CreateApplicationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2907,6 +3828,8 @@ type CreateApplicationResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *CreateApplicationResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -2978,6 +3901,11 @@ func (r CreateApplicationResponse) ContentType() string {
 	return ""
 }
 
+// GetOwnApplicationResponse429Headers the declared response headers of an HTTP 429 response for GetOwnApplication
+type GetOwnApplicationResponse429Headers struct {
+	RetryAfter *int
+}
+
 type GetOwnApplicationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2997,6 +3925,8 @@ type GetOwnApplicationResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *GetOwnApplicationResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3068,6 +3998,101 @@ func (r GetOwnApplicationResponse) ContentType() string {
 	return ""
 }
 
+type ArchiveApplicationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Application
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Problem
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Problem
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Problem
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Problem
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Problem
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *Problem
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ArchiveApplicationResponse) GetJSON200() *Application {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r ArchiveApplicationResponse) GetJSON400() *Problem {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ArchiveApplicationResponse) GetJSON401() *Problem {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ArchiveApplicationResponse) GetJSON403() *Problem {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ArchiveApplicationResponse) GetJSON404() *Problem {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r ArchiveApplicationResponse) GetJSON409() *Problem {
+	return r.JSON409
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r ArchiveApplicationResponse) GetJSON429() *Problem {
+	return r.JSON429
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ArchiveApplicationResponse) GetJSON503() *Problem {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ArchiveApplicationResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ArchiveApplicationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ArchiveApplicationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ArchiveApplicationResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// RotateClientCredentialResponse429Headers the declared response headers of an HTTP 429 response for RotateClientCredential
+type RotateClientCredentialResponse429Headers struct {
+	RetryAfter *int
+}
+
 type RotateClientCredentialResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3087,6 +4112,8 @@ type RotateClientCredentialResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *RotateClientCredentialResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3158,6 +4185,11 @@ func (r RotateClientCredentialResponse) ContentType() string {
 	return ""
 }
 
+// ListNoticesResponse429Headers the declared response headers of an HTTP 429 response for ListNotices
+type ListNoticesResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ListNoticesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3177,6 +4209,8 @@ type ListNoticesResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ListNoticesResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3248,6 +4282,11 @@ func (r ListNoticesResponse) ContentType() string {
 	return ""
 }
 
+// AcknowledgeNoticeResponse429Headers the declared response headers of an HTTP 429 response for AcknowledgeNotice
+type AcknowledgeNoticeResponse429Headers struct {
+	RetryAfter *int
+}
+
 type AcknowledgeNoticeResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3267,6 +4306,8 @@ type AcknowledgeNoticeResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *AcknowledgeNoticeResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3338,6 +4379,11 @@ func (r AcknowledgeNoticeResponse) ContentType() string {
 	return ""
 }
 
+// ResubmitApplicationResponse429Headers the declared response headers of an HTTP 429 response for ResubmitApplication
+type ResubmitApplicationResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ResubmitApplicationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3357,6 +4403,8 @@ type ResubmitApplicationResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ResubmitApplicationResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3428,6 +4476,11 @@ func (r ResubmitApplicationResponse) ContentType() string {
 	return ""
 }
 
+// PrepareConsentResponse429Headers the declared response headers of an HTTP 429 response for PrepareConsent
+type PrepareConsentResponse429Headers struct {
+	RetryAfter *int
+}
+
 type PrepareConsentResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3447,6 +4500,8 @@ type PrepareConsentResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *PrepareConsentResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3518,6 +4573,11 @@ func (r PrepareConsentResponse) ContentType() string {
 	return ""
 }
 
+// GetConsentResponse429Headers the declared response headers of an HTTP 429 response for GetConsent
+type GetConsentResponse429Headers struct {
+	RetryAfter *int
+}
+
 type GetConsentResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3537,6 +4597,8 @@ type GetConsentResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *GetConsentResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3608,6 +4670,11 @@ func (r GetConsentResponse) ContentType() string {
 	return ""
 }
 
+// DecideConsentResponse429Headers the declared response headers of an HTTP 429 response for DecideConsent
+type DecideConsentResponse429Headers struct {
+	RetryAfter *int
+}
+
 type DecideConsentResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3627,6 +4694,8 @@ type DecideConsentResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *DecideConsentResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3698,6 +4767,17 @@ func (r DecideConsentResponse) ContentType() string {
 	return ""
 }
 
+// ReadAuthorizedDataResponse200Headers the declared response headers of an HTTP 200 response for ReadAuthorizedData
+type ReadAuthorizedDataResponse200Headers struct {
+	XRateLimitLimit     *int
+	XRateLimitRemaining *int
+}
+
+// ReadAuthorizedDataResponse429Headers the declared response headers of an HTTP 429 response for ReadAuthorizedData
+type ReadAuthorizedDataResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ReadAuthorizedDataResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3717,6 +4797,10 @@ type ReadAuthorizedDataResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ReadAuthorizedDataResponse200Headers
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ReadAuthorizedDataResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3788,6 +4872,11 @@ func (r ReadAuthorizedDataResponse) ContentType() string {
 	return ""
 }
 
+// ListOwnGrantsResponse429Headers the declared response headers of an HTTP 429 response for ListOwnGrants
+type ListOwnGrantsResponse429Headers struct {
+	RetryAfter *int
+}
+
 type ListOwnGrantsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3807,6 +4896,8 @@ type ListOwnGrantsResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *ListOwnGrantsResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -3878,6 +4969,11 @@ func (r ListOwnGrantsResponse) ContentType() string {
 	return ""
 }
 
+// RevokeScopesResponse429Headers the declared response headers of an HTTP 429 response for RevokeScopes
+type RevokeScopesResponse429Headers struct {
+	RetryAfter *int
+}
+
 type RevokeScopesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3897,6 +4993,8 @@ type RevokeScopesResponse struct {
 	JSON429 *QuotaExceeded
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
+	// Headers429 the parsed response headers for an HTTP 429 response
+	Headers429 *RevokeScopesResponse429Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -4060,6 +5158,8 @@ func (r ExchangeCodeResponse) ContentType() string {
 
 // ListApplicationsWithResponse performs a GET /api/v1/open-platform/admin/apps (the `ListApplications` operationId) request.
 //
+// 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。.
+//
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ListApplicationsWithResponse(ctx context.Context, params *ListApplicationsParams, reqEditors ...RequestEditorFn) (*ListApplicationsResponse, error) {
 	rsp, err := c.ListApplications(ctx, params, reqEditors...)
@@ -4067,6 +5167,19 @@ func (c *ClientWithResponses) ListApplicationsWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseListApplicationsResponse(rsp)
+}
+
+// GetAdminApplicationWithResponse performs a GET /api/v1/open-platform/admin/apps/{id} (the `GetAdminApplication` operationId) request.
+//
+// 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetAdminApplicationWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetAdminApplicationResponse, error) {
+	rsp, err := c.GetAdminApplication(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAdminApplicationResponse(rsp)
 }
 
 // ReviewApplicationWithBodyWithResponse performs a POST /api/v1/open-platform/admin/apps/{id}/review (the `ReviewApplication` operationId) request,
@@ -4093,6 +5206,19 @@ func (c *ClientWithResponses) ReviewApplicationWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseReviewApplicationResponse(rsp)
+}
+
+// ListOverdueNoticeApplicationsWithResponse performs a GET /api/v1/open-platform/admin/notices/overdue (the `ListOverdueNoticeApplications` operationId) request.
+//
+// 管理后台巡检超过约定天数仍未提交 deleted 或 retention_exception 回执的应用列表，按最早逾期通知时间升序分页。.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListOverdueNoticeApplicationsWithResponse(ctx context.Context, params *ListOverdueNoticeApplicationsParams, reqEditors ...RequestEditorFn) (*ListOverdueNoticeApplicationsResponse, error) {
+	rsp, err := c.ListOverdueNoticeApplications(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListOverdueNoticeApplicationsResponse(rsp)
 }
 
 // ListOwnApplicationsWithResponse performs a GET /api/v1/open-platform/apps (the `ListOwnApplications` operationId) request.
@@ -4143,6 +5269,32 @@ func (c *ClientWithResponses) GetOwnApplicationWithResponse(ctx context.Context,
 	return ParseGetOwnApplicationResponse(rsp)
 }
 
+// ArchiveApplicationWithBodyWithResponse performs a POST /api/v1/open-platform/apps/{id}/archive (the `ArchiveApplication` operationId) request,
+// with any type of body and a specified content type.
+//
+// 开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ArchiveApplicationWithBodyWithResponse(ctx context.Context, id string, params *ArchiveApplicationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ArchiveApplicationResponse, error) {
+	rsp, err := c.ArchiveApplicationWithBody(ctx, id, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseArchiveApplicationResponse(rsp)
+}
+
+// ArchiveApplicationWithResponse performs a POST /api/v1/open-platform/apps/{id}/archive (the `ArchiveApplication` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// 开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。.
+func (c *ClientWithResponses) ArchiveApplicationWithResponse(ctx context.Context, id string, params *ArchiveApplicationParams, body ArchiveApplicationJSONRequestBody, reqEditors ...RequestEditorFn) (*ArchiveApplicationResponse, error) {
+	rsp, err := c.ArchiveApplication(ctx, id, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseArchiveApplicationResponse(rsp)
+}
+
 // RotateClientCredentialWithBodyWithResponse performs a POST /api/v1/open-platform/apps/{id}/credential (the `RotateClientCredential` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -4171,7 +5323,7 @@ func (c *ClientWithResponses) RotateClientCredentialWithResponse(ctx context.Con
 
 // ListNoticesWithResponse performs a GET /api/v1/open-platform/apps/{id}/notices (the `ListNotices` operationId) request.
 //
-// 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。停用后仍可查询；分页最多 100 条。.
+// 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。支持 pending_ack 筛选尚未提交删除或法定保留声明的通知。停用或归档后仍可查询；分页最多 100 条。.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ListNoticesWithResponse(ctx context.Context, id ResourceIdPath, params *ListNoticesParams, reqEditors ...RequestEditorFn) (*ListNoticesResponse, error) {
@@ -4299,7 +5451,7 @@ func (c *ClientWithResponses) DecideConsentWithResponse(ctx context.Context, id 
 
 // ReadAuthorizedDataWithResponse performs a GET /api/v1/open-platform/data/{scope} (the `ReadAuthorizedData` operationId) request.
 //
-// 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。.
+// 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额并通过响应头返回余量，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ReadAuthorizedDataWithResponse(ctx context.Context, scope ScopePath, params *ReadAuthorizedDataParams, reqEditors ...RequestEditorFn) (*ReadAuthorizedDataResponse, error) {
@@ -4311,6 +5463,8 @@ func (c *ClientWithResponses) ReadAuthorizedDataWithResponse(ctx context.Context
 }
 
 // ListOwnGrantsWithResponse performs a GET /api/v1/open-platform/grants (the `ListOwnGrants` operationId) request.
+//
+// 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ListOwnGrantsWithResponse(ctx context.Context, params *ListOwnGrantsParams, reqEditors ...RequestEditorFn) (*ListOwnGrantsResponse, error) {
@@ -4324,7 +5478,7 @@ func (c *ClientWithResponses) ListOwnGrantsWithResponse(ctx context.Context, par
 // RevokeScopesWithBodyWithResponse performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request,
 // with any type of body and a specified content type.
 //
-// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) RevokeScopesWithBodyWithResponse(ctx context.Context, id ResourceIdPath, params *RevokeScopesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RevokeScopesResponse, error) {
@@ -4338,7 +5492,7 @@ func (c *ClientWithResponses) RevokeScopesWithBodyWithResponse(ctx context.Conte
 // RevokeScopesWithResponse performs a POST /api/v1/open-platform/grants/{id}/revoke (the `RevokeScopes` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
+// 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。.
 func (c *ClientWithResponses) RevokeScopesWithResponse(ctx context.Context, id ResourceIdPath, params *RevokeScopesParams, body RevokeScopesJSONRequestBody, reqEditors ...RequestEditorFn) (*RevokeScopesResponse, error) {
 	rsp, err := c.RevokeScopes(ctx, id, params, body, reqEditors...)
 	if err != nil {
@@ -4388,7 +5542,7 @@ func ParseListApplicationsResponse(rsp *http.Response) (*ListApplicationsRespons
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Applications
+		var dest AdminApplications
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -4438,6 +5592,94 @@ func ParseListApplicationsResponse(rsp *http.Response) (*ListApplicationsRespons
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ListApplicationsResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseGetAdminApplicationResponse parses an HTTP response from a GetAdminApplicationWithResponse call
+func ParseGetAdminApplicationResponse(rsp *http.Response) (*GetAdminApplicationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAdminApplicationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminApplication
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -4520,6 +5762,94 @@ func ParseReviewApplicationResponse(rsp *http.Response) (*ReviewApplicationRespo
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ReviewApplicationResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseListOverdueNoticeApplicationsResponse parses an HTTP response from a ListOverdueNoticeApplicationsWithResponse call
+func ParseListOverdueNoticeApplicationsResponse(rsp *http.Response) (*ListOverdueNoticeApplicationsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListOverdueNoticeApplicationsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OverdueNoticeApplications
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
 	return response, nil
 }
 
@@ -4593,6 +5923,19 @@ func ParseListOwnApplicationsResponse(rsp *http.Response) (*ListOwnApplicationsR
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ListOwnApplicationsResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -4670,6 +6013,19 @@ func ParseCreateApplicationResponse(rsp *http.Response) (*CreateApplicationRespo
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers CreateApplicationResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -4738,6 +6094,94 @@ func ParseGetOwnApplicationResponse(rsp *http.Response) (*GetOwnApplicationRespo
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers GetOwnApplicationResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseArchiveApplicationResponse parses an HTTP response from a ArchiveApplicationWithResponse call
+func ParseArchiveApplicationResponse(rsp *http.Response) (*ArchiveApplicationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ArchiveApplicationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Application
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -4820,6 +6264,19 @@ func ParseRotateClientCredentialResponse(rsp *http.Response) (*RotateClientCrede
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers RotateClientCredentialResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -4893,6 +6350,19 @@ func ParseListNoticesResponse(rsp *http.Response) (*ListNoticesResponse, error) 
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ListNoticesResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -4970,6 +6440,19 @@ func ParseAcknowledgeNoticeResponse(rsp *http.Response) (*AcknowledgeNoticeRespo
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers AcknowledgeNoticeResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -5043,6 +6526,19 @@ func ParseResubmitApplicationResponse(rsp *http.Response) (*ResubmitApplicationR
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ResubmitApplicationResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -5120,6 +6616,19 @@ func ParsePrepareConsentResponse(rsp *http.Response) (*PrepareConsentResponse, e
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers PrepareConsentResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -5193,6 +6702,19 @@ func ParseGetConsentResponse(rsp *http.Response) (*GetConsentResponse, error) {
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers GetConsentResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -5270,6 +6792,19 @@ func ParseDecideConsentResponse(rsp *http.Response) (*DecideConsentResponse, err
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers DecideConsentResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -5343,6 +6878,36 @@ func ParseReadAuthorizedDataResponse(rsp *http.Response) (*ReadAuthorizedDataRes
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ReadAuthorizedDataResponse200Headers
+		if values := rsp.Header.Values("X-RateLimit-Limit"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "X-RateLimit-Limit", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.XRateLimitLimit = &value
+		}
+		if values := rsp.Header.Values("X-RateLimit-Remaining"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "X-RateLimit-Remaining", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.XRateLimitRemaining = &value
+		}
+		response.Headers200 = &headers
+	case rsp.StatusCode == 429:
+		var headers ReadAuthorizedDataResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -5420,6 +6985,19 @@ func ParseListOwnGrantsResponse(rsp *http.Response) (*ListOwnGrantsResponse, err
 
 	}
 
+	switch {
+	case rsp.StatusCode == 429:
+		var headers ListOwnGrantsResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
+	}
+
 	return response, nil
 }
 
@@ -5493,6 +7071,19 @@ func ParseRevokeScopesResponse(rsp *http.Response) (*RevokeScopesResponse, error
 		}
 		response.JSON503 = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 429:
+		var headers RevokeScopesResponse429Headers
+		if values := rsp.Header.Values("Retry-After"); len(values) > 0 {
+			var value int
+			if err := runtime.BindStyledParameterWithOptions("simple", "Retry-After", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.RetryAfter = &value
+		}
+		response.Headers429 = &headers
 	}
 
 	return response, nil
@@ -5579,8 +7170,14 @@ type ServerInterface interface {
 	// (GET /api/v1/open-platform/admin/apps)
 	ListApplications(w http.ResponseWriter, r *http.Request, params ListApplicationsParams)
 
+	// (GET /api/v1/open-platform/admin/apps/{id})
+	GetAdminApplication(w http.ResponseWriter, r *http.Request, id string)
+
 	// (POST /api/v1/open-platform/admin/apps/{id}/review)
 	ReviewApplication(w http.ResponseWriter, r *http.Request, id ResourceIdPath, params ReviewApplicationParams)
+
+	// (GET /api/v1/open-platform/admin/notices/overdue)
+	ListOverdueNoticeApplications(w http.ResponseWriter, r *http.Request, params ListOverdueNoticeApplicationsParams)
 
 	// (GET /api/v1/open-platform/apps)
 	ListOwnApplications(w http.ResponseWriter, r *http.Request, params ListOwnApplicationsParams)
@@ -5590,6 +7187,9 @@ type ServerInterface interface {
 
 	// (GET /api/v1/open-platform/apps/{id})
 	GetOwnApplication(w http.ResponseWriter, r *http.Request, id ResourceIdPath)
+
+	// (POST /api/v1/open-platform/apps/{id}/archive)
+	ArchiveApplication(w http.ResponseWriter, r *http.Request, id string, params ArchiveApplicationParams)
 
 	// (POST /api/v1/open-platform/apps/{id}/credential)
 	RotateClientCredential(w http.ResponseWriter, r *http.Request, id ResourceIdPath, params RotateClientCredentialParams)
@@ -5643,6 +7243,32 @@ func (siw *ServerInterfaceWrapper) ListApplications(w http.ResponseWriter, r *ht
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ListApplicationsParams
 
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "owner" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "owner", r.URL.Query(), &params.Owner, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "owner"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "owner", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "after" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "after", r.URL.Query(), &params.After, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
@@ -5671,6 +7297,32 @@ func (siw *ServerInterfaceWrapper) ListApplications(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListApplications(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminApplication operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminApplication(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminApplication(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5725,6 +7377,65 @@ func (siw *ServerInterfaceWrapper) ReviewApplication(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReviewApplication(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListOverdueNoticeApplications operation middleware
+func (siw *ServerInterfaceWrapper) ListOverdueNoticeApplications(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListOverdueNoticeApplicationsParams
+
+	// ------------- Optional query parameter "older_than_days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "older_than_days", r.URL.Query(), &params.OlderThanDays, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "older_than_days"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "older_than_days", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "after" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "after", r.URL.Query(), &params.After, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "after"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "after", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOverdueNoticeApplications(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5851,6 +7562,60 @@ func (siw *ServerInterfaceWrapper) GetOwnApplication(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ArchiveApplication operation middleware
+func (siw *ServerInterfaceWrapper) ArchiveApplication(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ArchiveApplicationParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ArchiveApplication(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RotateClientCredential operation middleware
 func (siw *ServerInterfaceWrapper) RotateClientCredential(w http.ResponseWriter, r *http.Request) {
 
@@ -5922,6 +7687,19 @@ func (siw *ServerInterfaceWrapper) ListNotices(w http.ResponseWriter, r *http.Re
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ListNoticesParams
+
+	// ------------- Optional query parameter "pending_ack" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pending_ack", r.URL.Query(), &params.PendingAck, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "pending_ack"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pending_ack", Err: err})
+		}
+		return
+	}
 
 	// ------------- Optional query parameter "after" -------------
 
@@ -6331,6 +8109,19 @@ func (siw *ServerInterfaceWrapper) ListOwnGrants(w http.ResponseWriter, r *http.
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ListOwnGrantsParams
 
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "after" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "after", r.URL.Query(), &params.After, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
@@ -6557,10 +8348,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/open-platform/admin/apps", wrapper.ListApplications)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/open-platform/admin/apps/{id}", wrapper.GetAdminApplication)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/open-platform/admin/apps/{id}/review", wrapper.ReviewApplication)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/open-platform/admin/notices/overdue", wrapper.ListOverdueNoticeApplications)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/open-platform/apps", wrapper.ListOwnApplications)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/open-platform/apps", wrapper.CreateApplication)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/open-platform/apps/{id}", wrapper.GetOwnApplication)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/open-platform/apps/{id}/archive", wrapper.ArchiveApplication)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/open-platform/apps/{id}/credential", wrapper.RotateClientCredential)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/v1/open-platform/apps/{id}/notices", wrapper.ListNotices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/v1/open-platform/apps/{id}/notices/{notice_id}/ack", wrapper.AcknowledgeNotice)

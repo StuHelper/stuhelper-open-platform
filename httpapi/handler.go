@@ -7,10 +7,12 @@ import (
 	op "github.com/StuHelper/stuhelper-open-platform"
 	"github.com/StuHelper/stuhelper-open-platform/sdk"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -37,7 +39,7 @@ func write(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
-func failure(w http.ResponseWriter, e error) {
+func (h Handler) failure(w http.ResponseWriter, e error) {
 	code, status := "unavailable", 503
 	switch {
 	case errors.Is(e, op.ErrInput):
@@ -52,11 +54,32 @@ func failure(w http.ResponseWriter, e error) {
 		code, status = "conflict", 409
 	case errors.Is(e, op.ErrQuota):
 		code, status = "quota_exceeded", 429
+		retryAfter := 86400
+		if h.Service != nil {
+			retryAfter = h.Service.RetryAfterSeconds()
+		}
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
 	}
-	write(w, status, map[string]string{"code": code})
+	write(w, status, op.Problem{Code: code, Reason: op.ErrorReason(e)})
+}
+func validMediaType(r *http.Request, expected string) bool {
+	values := r.Header.Values("Content-Type")
+	if len(values) != 1 {
+		return false
+	}
+	mediaType, params, err := mime.ParseMediaType(values[0])
+	if err != nil || mediaType != expected {
+		return false
+	}
+	for k, v := range params {
+		if k != "charset" || !strings.EqualFold(v, "utf-8") {
+			return false
+		}
+	}
+	return true
 }
 func body(r *http.Request, out any) error {
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+	if !validMediaType(r, "application/json") {
 		return op.ErrInput
 	}
 	d := json.NewDecoder(r.Body)
@@ -92,6 +115,9 @@ func validateAllowedQuery(rawQuery string, allowed []string) error {
 		return op.ErrInput
 	}
 	for k, v := range values {
+		if k == "pending_ack" && len(v) == 1 && v[0] != "" && v[0] != "true" && v[0] != "false" {
+			return op.ErrInput
+		}
 		if !slices.Contains(allowed, k) || len(v) != 1 || (k == "limit" && v[0] == "") {
 			return op.ErrInput
 		}
@@ -123,24 +149,24 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	r.Body = http.MaxBytesReader(w, r.Body, 16384)
 	if h.Service == nil {
-		failure(w, op.ErrUnavailable)
+		h.failure(w, op.ErrUnavailable)
 		return
 	}
 	if !strings.HasPrefix(r.URL.Path, "/api/v1/open-platform/") || strings.Contains(r.URL.Path, "//") || path.Clean(r.URL.Path) != r.URL.Path {
-		failure(w, op.ErrNotFound)
+		h.failure(w, op.ErrNotFound)
 		return
 	}
 	mux := http.NewServeMux()
 	sdk.HandlerWithOptions(serverAdapter{Handler: h}, sdk.StdHTTPServerOptions{
 		BaseRouter: mux,
 		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, _ error) {
-			failure(w, op.ErrInput)
+			h.failure(w, op.ErrInput)
 		},
 	})
 	_, pattern := mux.Handler(r)
 	spec, ok := contractRoutes[pattern]
 	if !ok {
-		failure(w, op.ErrNotFound)
+		h.failure(w, op.ErrNotFound)
 		return
 	}
 	if pattern == "POST /api/v1/open-platform/token" {
@@ -149,7 +175,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if pattern == "GET /api/v1/open-platform/data/{scope}" {
 		if e := validateAllowedQuery(r.URL.RawQuery, spec.queryParams); e != nil {
-			failure(w, e)
+			h.failure(w, e)
 			return
 		}
 		mux.ServeHTTP(w, r)
@@ -162,32 +188,32 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if noticeRoute && basic {
 		segs := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/open-platform/"), "/")
 		if len(segs) < 3 || appID != segs[1] || secret == "" {
-			failure(w, op.ErrUnauthenticated)
+			h.failure(w, op.ErrUnauthenticated)
 			return
 		}
 		auth = requestAuth{basicApp: appID, secret: secret, basic: true}
 	} else {
 		p, e := h.principal(r)
 		if e != nil {
-			failure(w, e)
+			h.failure(w, e)
 			return
 		}
 		auth = requestAuth{principal: p}
 	}
 	if spec.idempotent && (len(r.Header.Values("Idempotency-Key")) != 1 || r.Header.Get("Idempotency-Key") == "") {
-		failure(w, op.ErrInput)
+		h.failure(w, op.ErrInput)
 		return
 	}
 	if e := validateAllowedQuery(r.URL.RawQuery, spec.queryParams); e != nil {
-		failure(w, e)
+		h.failure(w, e)
 		return
 	}
 	mux.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), authContextKey{}, auth)))
 }
 
-func respond(w http.ResponseWriter, result any, err error) {
+func (s serverAdapter) respond(w http.ResponseWriter, result any, err error) {
 	if err != nil {
-		failure(w, err)
+		s.failure(w, err)
 		return
 	}
 	write(w, http.StatusOK, result)
@@ -196,118 +222,127 @@ func respond(w http.ResponseWriter, result any, err error) {
 func (s serverAdapter) CreateApplication(w http.ResponseWriter, r *http.Request, params sdk.CreateApplicationParams) {
 	var in op.ApplicationInput
 	if e := body(r, &in); e != nil {
-		failure(w, e)
+		s.failure(w, e)
 		return
 	}
 	out, e := s.Service.Apply(r.Context(), authFrom(r).principal, "", params.IdempotencyKey, in)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) ListOwnApplications(w http.ResponseWriter, r *http.Request, params sdk.ListOwnApplicationsParams) {
 	after, limit := pageArgs(params.After, params.Limit)
 	out, e := s.Service.Applications(r.Context(), authFrom(r).principal, false, after, limit)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) ListApplications(w http.ResponseWriter, r *http.Request, params sdk.ListApplicationsParams) {
 	after, limit := pageArgs(params.After, params.Limit)
-	out, e := s.Service.Applications(r.Context(), authFrom(r).principal, true, after, limit)
-	respond(w, out, e)
+	state := ""
+	if params.State != nil {
+		state = string(*params.State)
+	}
+	out, e := s.Service.AdminApplications(r.Context(), authFrom(r).principal, op.AdminAppFilter{After: after, Limit: limit, Owner: derefString(params.Owner), State: state})
+	s.respond(w, out, e)
 }
 func (s serverAdapter) GetOwnApplication(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath) {
 	out, e := s.Service.Application(r.Context(), authFrom(r).principal, id)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) ResubmitApplication(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.ResubmitApplicationParams) {
 	var in op.ApplicationInput
 	if e := body(r, &in); e != nil {
-		failure(w, e)
+		s.failure(w, e)
 		return
 	}
 	out, e := s.Service.Apply(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) ReviewApplication(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.ReviewApplicationParams) {
 	var in op.ReviewInput
 	if e := body(r, &in); e != nil {
-		failure(w, e)
+		s.failure(w, e)
 		return
 	}
 	out, e := s.Service.Review(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) RotateClientCredential(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.RotateClientCredentialParams) {
 	var in struct {
 		Revision int64 `json:"revision"`
 	}
 	if e := body(r, &in); e != nil {
-		failure(w, e)
+		s.failure(w, e)
 		return
 	}
 	out, e := s.Service.RotateCredential(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in.Revision)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) PrepareConsent(w http.ResponseWriter, r *http.Request, params sdk.PrepareConsentParams) {
 	var in op.ConsentInput
 	if e := body(r, &in); e != nil {
-		failure(w, e)
+		s.failure(w, e)
 		return
 	}
 	out, e := s.Service.PrepareConsent(r.Context(), authFrom(r).principal, params.IdempotencyKey, in)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) GetConsent(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath) {
 	out, e := s.Service.Consent(r.Context(), authFrom(r).principal, id)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) DecideConsent(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.DecideConsentParams) {
 	var in op.ConsentDecision
 	if e := body(r, &in); e != nil {
-		failure(w, e)
+		s.failure(w, e)
 		return
 	}
 	out, e := s.Service.Decide(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) ListOwnGrants(w http.ResponseWriter, r *http.Request, params sdk.ListOwnGrantsParams) {
 	after, limit := pageArgs(params.After, params.Limit)
-	out, e := s.Service.Grants(r.Context(), authFrom(r).principal, after, limit)
-	respond(w, out, e)
+	state := ""
+	if params.State != nil {
+		state = string(*params.State)
+	}
+	out, e := s.Service.ListGrants(r.Context(), authFrom(r).principal, state, after, limit)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) RevokeScopes(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.RevokeScopesParams) {
 	var in op.RevokeInput
 	if e := body(r, &in); e != nil {
-		failure(w, e)
+		s.failure(w, e)
 		return
 	}
 	out, e := s.Service.Revoke(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) ListNotices(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, params sdk.ListNoticesParams) {
 	auth := authFrom(r)
 	if auth.basic && auth.basicApp != id {
-		failure(w, op.ErrUnauthenticated)
+		s.failure(w, op.ErrUnauthenticated)
 		return
 	}
 	after, limit := pageArgs(params.After, params.Limit)
-	out, e := s.Service.Notices(r.Context(), auth.principal, id, auth.secret, after, limit)
-	respond(w, out, e)
+	pending := params.PendingAck != nil && *params.PendingAck
+	out, e := s.Service.ListNotices(r.Context(), auth.principal, id, auth.secret, pending, after, limit)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) AcknowledgeNotice(w http.ResponseWriter, r *http.Request, id sdk.ResourceIdPath, noticeID sdk.NoticeIdPath, params sdk.AcknowledgeNoticeParams) {
 	auth := authFrom(r)
 	if auth.basic && auth.basicApp != id {
-		failure(w, op.ErrUnauthenticated)
+		s.failure(w, op.ErrUnauthenticated)
 		return
 	}
 	var in op.Acknowledgement
 	if e := body(r, &in); e != nil {
-		failure(w, e)
+		s.failure(w, e)
 		return
 	}
 	out, e := s.Service.Acknowledge(r.Context(), auth.principal, id, auth.secret, noticeID, params.IdempotencyKey, in)
-	respond(w, out, e)
+	s.respond(w, out, e)
 }
 func (s serverAdapter) ExchangeCode(w http.ResponseWriter, r *http.Request) {
 	bad := func(code string, status int) { write(w, status, map[string]string{"error": code}) }
-	if len(r.URL.RawQuery) != 0 || r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" || r.ParseForm() != nil {
+	if len(r.URL.RawQuery) != 0 || !validMediaType(r, "application/x-www-form-urlencoded") || r.ParseForm() != nil {
 		bad("invalid_request", 400)
 		return
 	}
@@ -335,7 +370,7 @@ func (s serverAdapter) ExchangeCode(w http.ResponseWriter, r *http.Request) {
 			bad("invalid_client", 401)
 		} else if errors.Is(e, op.ErrInput) {
 			bad("invalid_request", 400)
-		} else if errors.Is(e, op.ErrUnavailable) {
+		} else if errors.Is(e, op.ErrUnavailable) || errors.Is(e, op.ErrConflict) || errors.Is(e, context.DeadlineExceeded) || errors.Is(e, context.Canceled) {
 			bad("temporarily_unavailable", 503)
 		} else {
 			bad("invalid_grant", 400)
@@ -356,23 +391,23 @@ func (s serverAdapter) ReadAuthorizedData(w http.ResponseWriter, r *http.Request
 		allowed = []string{"id", "kind", "term_id", "target_id", "after", "limit"}
 	}
 	if e := validateAllowedQuery(r.URL.RawQuery, allowed); e != nil {
-		failure(w, e)
+		s.failure(w, e)
 		return
 	}
 	limit := 50
 	if params.Limit != nil {
 		if *params.Limit < 1 || *params.Limit > 100 {
-			failure(w, op.ErrInput)
+			s.failure(w, op.ErrInput)
 			return
 		}
 		limit = *params.Limit
 	}
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Bearer ") {
-		failure(w, op.ErrUnauthenticated)
+		s.failure(w, op.ErrUnauthenticated)
 		return
 	}
-	out, e := s.Service.Read(r.Context(), strings.TrimPrefix(auth, "Bearer "), sc, op.Query{
+	out, qw, e := s.Service.ReadWithQuota(r.Context(), strings.TrimPrefix(auth, "Bearer "), sc, op.Query{
 		ID:       derefString(params.Id),
 		Kind:     derefString(params.Kind),
 		Query:    derefString(params.Query),
@@ -381,5 +416,38 @@ func (s serverAdapter) ReadAuthorizedData(w http.ResponseWriter, r *http.Request
 		After:    derefString(params.After),
 		Limit:    limit,
 	})
-	respond(w, out, e)
+	if qw.Set {
+		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(qw.Limit))
+		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(qw.Remaining))
+	}
+	s.respond(w, out, e)
+}
+
+func (s serverAdapter) GetAdminApplication(w http.ResponseWriter, r *http.Request, id string) {
+	out, e := s.Service.AdminApplication(r.Context(), authFrom(r).principal, id)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) ArchiveApplication(w http.ResponseWriter, r *http.Request, id string, params sdk.ArchiveApplicationParams) {
+	var in struct {
+		Revision int64 `json:"revision"`
+	}
+	if e := body(r, &in); e != nil {
+		s.failure(w, e)
+		return
+	}
+	out, e := s.Service.Archive(r.Context(), authFrom(r).principal, id, params.IdempotencyKey, in.Revision)
+	s.respond(w, out, e)
+}
+func (s serverAdapter) ListOverdueNoticeApplications(w http.ResponseWriter, r *http.Request, params sdk.ListOverdueNoticeApplicationsParams) {
+	days := 7
+	if params.OlderThanDays != nil {
+		days = *params.OlderThanDays
+		if days < 1 || days > 365 {
+			s.failure(w, op.ErrInput)
+			return
+		}
+	}
+	after, limit := pageArgs(params.After, params.Limit)
+	out, e := s.Service.OverdueNoticeApplications(r.Context(), authFrom(r).principal, days, after, limit)
+	s.respond(w, out, e)
 }
