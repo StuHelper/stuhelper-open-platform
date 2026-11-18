@@ -19,6 +19,7 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 		}
 		var e error
 		out, e = replay(t, p.Owner, key, "application:"+id, in, func() (Application, error) {
+			now := s.now()
 			var a AppRecord
 			if id == "" {
 				n, e := t.CountApps(p.Owner)
@@ -32,7 +33,7 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 				if e != nil {
 					return out, e
 				}
-				a = AppRecord{Owner: p.Owner, View: Application{ID: id, Revision: 1, CreatedAt: s.now(), ApprovedScopes: []string{}}}
+				a = AppRecord{Owner: p.Owner, UpdatedAt: now, View: Application{ID: id, Revision: 1, CreatedAt: now, ApprovedScopes: []string{}}}
 			} else {
 				var e error
 				a, e = t.App(id)
@@ -42,13 +43,16 @@ func (s *Service) Apply(ctx context.Context, p Principal, id, key string, in App
 				if a.Owner != p.Owner {
 					return out, ErrNotFound
 				}
-				if a.View.State == "active" || a.View.Revision != in.Revision {
+				if a.View.State == "active" || a.View.State == "suspended" || a.View.Revision != in.Revision {
 					return out, ErrConflict
 				}
 				a.View.Revision++
 				a.View.ApprovedScopes = []string{}
-				a.View.Note = ""
 				a.View.Policy = Policy{}
+				a.UpdatedAt = now
+			}
+			if in.ClientType == "public" {
+				a.SecretHash = ""
 			}
 			a.View.Name = in.Name
 			a.View.Purpose = in.Purpose
@@ -156,15 +160,20 @@ func (s *Service) Review(ctx context.Context, p Principal, id, key string, in Re
 			if !subset(in.ApprovedScopes, a.View.RequestedScopes) {
 				return out, ErrInput
 			}
+			now := s.now()
+			a.UpdatedAt = now
 			switch in.Decision {
 			case "approve":
 				a.View.State = "active"
 				a.View.ApprovedScopes = in.ApprovedScopes
 				a.View.Policy = in.Policy
+				a.TerminatedAt = nil
 			case "changes_requested":
 				a.View.State = "changes_requested"
+				a.TerminatedAt = nil
 			case "suspend":
 				a.View.State = "suspended"
+				a.TerminatedAt = &now
 			}
 			a.View.Revision++
 			a.View.Note = in.Note
@@ -198,7 +207,7 @@ func (s *Service) RotateCredential(ctx context.Context, p Principal, id, key str
 			return ErrNotFound
 		}
 		out, e = replay(t, p.Owner, key, "credential:"+id, revision, func() (Credential, error) {
-			if a.View.CredentialRevision != revision {
+			if a.View.ClientType != "confidential" || a.View.CredentialRevision != revision {
 				return out, ErrConflict
 			}
 			v, e := s.random()
@@ -208,6 +217,7 @@ func (s *Service) RotateCredential(ctx context.Context, p Principal, id, key str
 			secret = "opsecret_" + v
 			a.SecretHash = hash(secret)
 			a.View.CredentialRevision++
+			a.UpdatedAt = s.now()
 			if e = t.SaveApp(a); e != nil {
 				return out, e
 			}

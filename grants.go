@@ -70,6 +70,7 @@ func (s *Service) Grants(ctx context.Context, p Principal, after string, limit i
 			}
 			if reason != "" {
 				g.View.State = "revoked"
+				g.View.Scopes = []string{}
 			}
 			items = append(items, g.View)
 		}
@@ -108,15 +109,35 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 			if e != nil {
 				return out, e
 			}
-			if g.View.Revision != in.Revision || !subset(in.Scopes, g.View.Scopes) {
+			if g.View.State != "active" || g.View.Revision != in.Revision || !subset(in.Scopes, g.View.Scopes) {
 				return out, ErrConflict
 			}
-			if e = s.notice(t, g, in.Scopes, "user_revoked"); e != nil {
+			a, e := t.App(g.View.AppID)
+			if e != nil {
 				return out, e
 			}
-			g.View.Scopes = difference(g.View.Scopes, in.Scopes)
-			if len(g.View.Scopes) == 0 {
+			reason, e := s.grantReason(t, g, a)
+			if e != nil {
+				return out, e
+			}
+			now := s.now()
+			g.UpdatedAt = now
+			if reason != "" {
+				if e = s.notice(t, g, g.View.Scopes, reason); e != nil {
+					return out, e
+				}
+				g.View.Scopes = []string{}
 				g.View.State = "revoked"
+				g.TerminatedAt = &now
+			} else {
+				if e = s.notice(t, g, in.Scopes, "user_revoked"); e != nil {
+					return out, e
+				}
+				g.View.Scopes = difference(g.View.Scopes, in.Scopes)
+				if len(g.View.Scopes) == 0 {
+					g.View.State = "revoked"
+					g.TerminatedAt = &now
+				}
 			}
 			g.View.Revision++
 			if e = t.SaveGrant(g); e != nil {
@@ -140,7 +161,7 @@ func (s *Service) CloseAccount(ctx context.Context, owner, closureID string) err
 			if e := t.CloseOwner(owner, closureID); e != nil {
 				return false, e
 			}
-			if e := t.SuspendOwnedApps(owner); e != nil {
+			if e := t.SuspendOwnedApps(owner, s.now()); e != nil {
 				return false, e
 			}
 			return true, nil
@@ -184,8 +205,12 @@ func (s *Service) Work(ctx context.Context, limit int) (int, error) {
 			if e = s.notice(t, g, g.View.Scopes, reason); e != nil {
 				return e
 			}
+			now := s.now()
+			g.View.Scopes = []string{}
 			g.View.State = "revoked"
 			g.View.Revision++
+			g.UpdatedAt = now
+			g.TerminatedAt = &now
 			if e = t.SaveGrant(g); e != nil {
 				return e
 			}
@@ -239,6 +264,19 @@ func (s *Service) Notices(ctx context.Context, p Principal, app, secret, after s
 	})
 	return out, e
 }
+func ackRank(status string) int {
+	switch status {
+	case "received":
+		return 1
+	case "retention_exception":
+		return 2
+	case "deleted":
+		return 3
+	default:
+		return 0
+	}
+}
+
 func (s *Service) Acknowledge(ctx context.Context, p Principal, app, secret, id, key string, in Acknowledgement) (Notice, error) {
 	var out Notice
 	if !validID(app) || !validID(id) || !slices.Contains([]string{"received", "deleted", "retention_exception"}, in.Status) || !validText(in.Note, 1000, in.Status != "retention_exception") {
@@ -260,7 +298,7 @@ func (s *Service) Acknowledge(ctx context.Context, p Principal, app, secret, id,
 			if n.AppID != app {
 				return out, ErrNotFound
 			}
-			if n.Acknowledgement == "deleted" && in.Status != "deleted" {
+			if ackRank(in.Status) < ackRank(n.Acknowledgement) {
 				return out, ErrConflict
 			}
 			n.Acknowledgement = in.Status
