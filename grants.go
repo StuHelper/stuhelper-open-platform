@@ -50,7 +50,7 @@ func (s *Service) Grants(ctx context.Context, p Principal, after string, limit i
 	if e != nil {
 		return out, e
 	}
-	e = s.transaction(ctx, p.Owner, "", func(t Transaction) error {
+	e = s.sharedTransaction(ctx, p.Owner, "", func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
@@ -59,16 +59,9 @@ func (s *Service) Grants(ctx context.Context, p Principal, after string, limit i
 			return e
 		}
 		items := []Grant{}
-		for _, g := range rows {
-			a, e := t.App(g.View.AppID)
-			if e != nil {
-				return e
-			}
-			reason, e := s.grantReason(t, g, a)
-			if e != nil {
-				return e
-			}
-			if reason != "" {
+		for _, row := range rows {
+			g := row.Record
+			if row.OwnerClosed || row.AppOwnerClosed || g.View.State != "active" || !s.now().Before(g.View.ExpiresAt) || row.AppState != "active" || row.CurrentAppRev != g.AppRevision {
 				g.View.State = "revoked"
 				g.View.Scopes = []string{}
 			}
@@ -101,7 +94,7 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 	if located.Owner != p.Owner {
 		return out, ErrNotFound
 	}
-	e = s.transaction(dbCtx, p.Owner, located.View.AppID, func(t Transaction) error {
+	e = s.sharedTransaction(dbCtx, p.Owner, located.View.AppID, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}
@@ -190,7 +183,7 @@ func (s *Service) Work(ctx context.Context, limit int) (int, error) {
 	}
 	done := 0
 	for _, row := range rows {
-		e = s.transaction(ctx, row.Owner, row.View.AppID, func(t Transaction) error {
+		e = s.sharedTransaction(ctx, row.Owner, row.View.AppID, func(t Transaction) error {
 			g, e := t.Grant(row.View.ID)
 			if e != nil {
 				return e
@@ -227,6 +220,22 @@ func (s *Service) Work(ctx context.Context, limit int) (int, error) {
 	}
 	return done, nil
 }
+func (s *Service) preAuthenticateApp(ctx context.Context, app, secret string) error {
+	if secret == "" {
+		return nil
+	}
+	if e := s.ready(); e != nil {
+		return e
+	}
+	a, e := s.Repo.LocateApp(ctx, app)
+	if e != nil {
+		return lookupError(e)
+	}
+	if !sameHash(a.SecretHash, hash(secret)) {
+		return ErrUnauthenticated
+	}
+	return nil
+}
 func (s *Service) Notices(ctx context.Context, p Principal, app, secret, after string, limit int) (Page[Notice], error) {
 	var out Page[Notice]
 	if !validID(app) {
@@ -245,7 +254,10 @@ func (s *Service) Notices(ctx context.Context, p Principal, app, secret, after s
 	if e != nil {
 		return out, e
 	}
-	e = s.transaction(ctx, p.Owner, app, func(t Transaction) error {
+	if e := s.preAuthenticateApp(ctx, app, secret); e != nil {
+		return out, e
+	}
+	e = s.sharedTransaction(ctx, p.Owner, app, func(t Transaction) error {
 		if _, e := authenticatedApp(t, p, app, secret); e != nil {
 			return e
 		}
@@ -254,17 +266,16 @@ func (s *Service) Notices(ctx context.Context, p Principal, app, secret, after s
 			return e
 		}
 		out = page(rows, limit, func(n Notice) string { return stringRevision(n.Sequence) })
+		now := s.now()
+		unseen := []string{}
 		for i, n := range out.Items {
 			if n.SeenAt == nil {
-				now := s.now()
 				n.SeenAt = &now
-				if e = t.SaveNotice(n); e != nil {
-					return e
-				}
 				out.Items[i] = n
+				unseen = append(unseen, n.ID)
 			}
 		}
-		return nil
+		return t.MarkNoticesSeen(unseen, now)
 	})
 	return out, e
 }
@@ -289,7 +300,13 @@ func (s *Service) Acknowledge(ctx context.Context, p Principal, app, secret, id,
 	if secret != "" && !validToken(secret, 256) {
 		return out, ErrUnauthenticated
 	}
-	e := s.transaction(ctx, p.Owner, app, func(t Transaction) error {
+	if e := s.preAuthenticateApp(ctx, app, secret); e != nil {
+		return out, e
+	}
+	e := s.sharedTransaction(ctx, p.Owner, app, func(t Transaction) error {
+		if e := t.LockAppAck(app); e != nil {
+			return e
+		}
 		if _, e := authenticatedApp(t, p, app, secret); e != nil {
 			return e
 		}

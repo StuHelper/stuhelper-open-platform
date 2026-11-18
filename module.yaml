@@ -37,6 +37,7 @@ scenario_tests:
     - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence
     - lifecycle_transitions_test.go#TestRevokeAndReconsentStateMachineSuspendedResubmitAckMonotonicityAndTerminationTimestamps
+    - locking_performance_test.go#TestNoticesPreventUnauthenticatedAppEnumerationAvoidLockContentionAndEliminateNPlusOneAndFullScan
   OP-04:
     - integration_test.go#TestHTTPRejectsForgedOwnersAndUsesOAuthExchange
     - token_protocol_test.go#TestTokenEndpointAcceptsBrowserFormMediaTypeAndMapsTransientErrorsTo503

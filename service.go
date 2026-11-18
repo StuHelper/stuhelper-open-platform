@@ -230,10 +230,16 @@ func validateApp(in *ApplicationInput) error {
 	return e
 }
 func (s *Service) transaction(ctx context.Context, owner, app string, run func(Transaction) error) error {
+	return s.runTransaction(ctx, owner, app, true, run)
+}
+func (s *Service) sharedTransaction(ctx context.Context, owner, app string, run func(Transaction) error) error {
+	return s.runTransaction(ctx, owner, app, false, run)
+}
+func (s *Service) runTransaction(ctx context.Context, owner, app string, exclusiveApp bool, run func(Transaction) error) error {
 	if e := s.ready(); e != nil {
 		return e
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	return s.Repo.Transaction(ctx, owner, app, run)
+	return s.Repo.Transaction(ctx, owner, app, exclusiveApp, run)
 }
