@@ -2030,14 +2030,18 @@
               "type": "string",
               "maxLength": 2048
             },
-            "maxItems": 10
+            "minItems": 1,
+            "maxItems": 10,
+            "uniqueItems": true
           },
           "requested_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "client_type": {
             "type": "string",
@@ -2081,21 +2085,26 @@
               "type": "string",
               "maxLength": 2048
             },
-            "maxItems": 10
+            "minItems": 1,
+            "maxItems": 10,
+            "uniqueItems": true
           },
           "requested_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "approved_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "client_type": {
             "type": "string",
@@ -2170,7 +2179,8 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "policy": {
             "$ref": "#/components/schemas/Policy"
@@ -2241,6 +2251,7 @@
           },
           "state": {
             "type": "string",
+            "minLength": 16,
             "maxLength": 512
           },
           "scope": {
@@ -2248,7 +2259,9 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "code_challenge": {
             "type": "string",
@@ -2270,44 +2283,6 @@
           "code_challenge_method"
         ]
       },
-      "ConsentApplication": {
-        "type": "object",
-        "additionalProperties": false,
-        "description": "面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。",
-        "properties": {
-          "id": {
-            "type": "string",
-            "maxLength": 64
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 80
-          },
-          "purpose": {
-            "type": "string",
-            "maxLength": 1000
-          },
-          "client_type": {
-            "type": "string",
-            "enum": [
-              "public",
-              "confidential"
-            ]
-          },
-          "grant_seconds": {
-            "type": "integer",
-            "minimum": 60,
-            "maximum": 31536000
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "purpose",
-          "client_type",
-          "grant_seconds"
-        ]
-      },
       "Consent": {
         "type": "object",
         "additionalProperties": false,
@@ -2324,22 +2299,9 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
+            "minItems": 1,
             "maxItems": 8,
             "uniqueItems": true
-          },
-          "active_granted_scopes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Scope"
-            },
-            "maxItems": 8,
-            "uniqueItems": true,
-            "description": "当前用户对该应用仍处于有效期的已授权范围；无有效授权时为空数组。"
-          },
-          "active_grant_expires_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "当前有效授权的到期时间；无有效授权时省略。"
           },
           "redirect_uri": {
             "type": "string",
@@ -2359,7 +2321,22 @@
               ]
             },
             "maxItems": 2,
+            "uniqueItems": true,
             "description": "Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested."
+          },
+          "active_granted_scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scope"
+            },
+            "maxItems": 8,
+            "uniqueItems": true,
+            "description": "当前用户对该应用仍处于有效期的已授权范围；无有效授权时为空数组。"
+          },
+          "active_grant_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "当前有效授权的到期时间；无有效授权时省略。"
           }
         },
         "required": [
@@ -2525,6 +2502,14 @@
               "revoked"
             ]
           },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
           "termination_reason": {
             "type": "string",
             "enum": [
@@ -2547,14 +2532,6 @@
             "type": "string",
             "format": "date-time",
             "description": "最近一次向该应用返回业务数据的时间；尚未读取时省略。"
-          },
-          "expires_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "revision": {
-            "type": "integer",
-            "format": "int64"
           }
         },
         "required": [
@@ -2617,7 +2594,9 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "reason": {
             "type": "string",
@@ -2814,11 +2793,11 @@
           },
           "nickname": {
             "type": "string",
-            "maxLength": 80
+            "maxLength": 20
           },
           "bio": {
             "type": "string",
-            "maxLength": 480
+            "maxLength": 120
           }
         },
         "required": [
@@ -3068,6 +3047,44 @@
           "id",
           "time_text",
           "location"
+        ]
+      },
+      "ConsentApplication": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "purpose": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "client_type": {
+            "type": "string",
+            "enum": [
+              "public",
+              "confidential"
+            ]
+          },
+          "grant_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 31536000
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "purpose",
+          "client_type",
+          "grant_seconds"
         ]
       }
     }

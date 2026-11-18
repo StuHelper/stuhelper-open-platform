@@ -8,6 +8,7 @@ import (
 	"fmt"
 	op "github.com/StuHelper/stuhelper-open-platform"
 	"github.com/StuHelper/stuhelper-open-platform/httpapi"
+	"github.com/StuHelper/stuhelper-open-platform/postgres"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -349,4 +350,28 @@ func mustQueryParam(t *testing.T, rawURL, key string) string {
 	}
 	t.Fatalf("missing query param %s in %s", key, rawURL)
 	return ""
+}
+
+func TestLegacyConsentKeepsDisplayedApprovalRevision(t *testing.T) {
+	x := setup(t)
+	scope := []string{"profile"}
+	app := approve(t, x.s, apply(t, x.s, dev, "legacy", scope, "public"), scope, 100)
+	hash := sha256.Sum256([]byte(strings.Repeat("a", 43)))
+	input := op.ConsentInput{ClientID: app.ID, RedirectURI: app.RedirectURIs[0], State: "legacy-test-browser", Scopes: scope, Challenge: base64.RawURLEncoding.EncodeToString(hash[:]), Method: "S256"}
+	for i, revision := range []int64{app.Revision, app.Revision - 1, 0} {
+		c, err := x.s.PrepareConsent(ctx, alice, fmt.Sprintf("prepare-legacy-%d", i), input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = x.db.Exec(`UPDATE open_platform.consents SET document=jsonb_set(document-'AppRevision','{View,application,revision}',to_jsonb($2::bigint)) WHERE id=$1`, c.ID, revision); err != nil {
+			t.Fatal(err)
+		}
+		if err = postgres.Migrate(ctx, x.db); err != nil {
+			t.Fatal(err)
+		}
+		_, err = x.s.Decide(ctx, alice, c.ID, fmt.Sprintf("decide-legacy-%d", i), op.ConsentDecision{Decision: "approve", Scopes: scope})
+		if (i == 0 && err != nil) || (i > 0 && !errors.Is(err, op.ErrConflict)) {
+			t.Fatalf("legacy revision %d, current %d: %v", revision, app.Revision, err)
+		}
+	}
 }

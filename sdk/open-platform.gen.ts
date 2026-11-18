@@ -332,19 +332,15 @@ export interface components {
             /** @enum {string} */
             code_challenge_method: "S256";
         };
-        /** @description 面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。 */
-        ConsentApplication: {
-            id: string;
-            name: string;
-            purpose: string;
-            /** @enum {string} */
-            client_type: "public" | "confidential";
-            grant_seconds: number;
-        };
         Consent: {
             id: string;
             application: components["schemas"]["ConsentApplication"];
             requested_scopes: components["schemas"]["Scope"][];
+            redirect_uri: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @description Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested. */
+            qq_tiers: ("binding_status" | "binding_status_and_number")[];
             /** @description 当前用户对该应用仍处于有效期的已授权范围；无有效授权时为空数组。 */
             active_granted_scopes: components["schemas"]["Scope"][];
             /**
@@ -352,11 +348,6 @@ export interface components {
              * @description 当前有效授权的到期时间；无有效授权时省略。
              */
             active_grant_expires_at?: string;
-            redirect_uri: string;
-            /** Format: date-time */
-            expires_at: string;
-            /** @description Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested. */
-            qq_tiers: ("binding_status" | "binding_status_and_number")[];
         };
         ConsentDecision: {
             /** @enum {string} */
@@ -397,6 +388,10 @@ export interface components {
             scopes: components["schemas"]["Scope"][];
             /** @enum {string} */
             state: "active" | "revoked";
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: int64 */
+            revision: number;
             /**
              * @description 授权已失效时的终止原因；当前有效授权省略该字段。
              * @enum {string}
@@ -411,10 +406,6 @@ export interface components {
              * @description 最近一次向该应用返回业务数据的时间；尚未读取时省略。
              */
             last_data_read_at?: string;
-            /** Format: date-time */
-            expires_at: string;
-            /** Format: int64 */
-            revision: number;
         };
         RevokeInput: {
             /** Format: int64 */
@@ -532,6 +523,15 @@ export interface components {
             id: string;
             time_text: string;
             location: string;
+        };
+        /** @description 面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。 */
+        ConsentApplication: {
+            id: string;
+            name: string;
+            purpose: string;
+            /** @enum {string} */
+            client_type: "public" | "confidential";
+            grant_seconds: number;
         };
     };
     responses: never;
