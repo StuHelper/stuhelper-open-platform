@@ -3,6 +3,7 @@ package openplatform
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -72,24 +73,35 @@ func (s *Service) Read(ctx context.Context, token, scope string, q Query) (Data,
 	if q.Limit == 0 {
 		q.Limit = 50
 	}
+	if s.Source == nil {
+		return out, ErrUnavailable
+	}
 	h := hash(token)
-	_, located, e := s.Repo.LocateToken(ctx, h)
+	preCtx, preCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer preCancel()
+	_, located, e := s.Repo.LocateToken(preCtx, h)
 	if e != nil {
 		return out, lookupError(e)
 	}
 	var grant GrantRecord
-	e = s.transaction(ctx, located.Owner, located.View.AppID, func(t Transaction) error { var e error; grant, e = s.authorizeToken(t, h, scope, true); return e })
+	e = s.transaction(preCtx, located.Owner, located.View.AppID, func(t Transaction) error { var e error; grant, e = s.authorizeToken(t, h, scope, true); return e })
 	if e != nil {
 		return out, e
-	}
-	if s.Source == nil {
-		return out, ErrUnavailable
 	}
 	readCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	value, e := s.Source.Read(readCtx, grant.Owner, scope, q)
 	if e != nil {
-		return out, e
+		switch {
+		case errors.Is(e, ErrForbidden):
+			return out, ErrForbidden
+		case errors.Is(e, ErrNotFound):
+			return out, ErrNotFound
+		case errors.Is(e, ErrInput):
+			return out, ErrInput
+		default:
+			return out, ErrUnavailable
+		}
 	}
 	if e = readCtx.Err(); e != nil {
 		return out, ErrUnavailable

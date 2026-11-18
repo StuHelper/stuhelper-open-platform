@@ -7,6 +7,7 @@ import (
 	a "github.com/StuHelper/stuhelper-open-platform/auditquery"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -82,27 +83,31 @@ func (r *Repository) ReadAudit(ctx context.Context, q a.Request) (out a.Batch, e
 	if q.Before != nil && (q.Before.Time.IsZero() || q.Before.ID == "" || !auditText(q.Before.ID, 256) || q.Before.Source == "" || !auditText(q.Before.Source, 64)) {
 		return out, a.ErrInvalid
 	}
+	callCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	defer func() {
 		if err != nil && err != a.ErrInvalid {
 			if ctx.Err() != nil {
 				err = ctx.Err()
+			} else if callCtx.Err() != nil {
+				err = callCtx.Err()
 			} else {
 				err = a.ErrUnavailable
 			}
 		}
 	}()
-	tx, err := r.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	tx, err := r.DB.BeginTx(callCtx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 	if err != nil {
 		return out, err
 	}
 	defer tx.Rollback()
 	var epoch int64
-	if err = tx.QueryRowContext(ctx, `SELECT revision FROM open_platform.audit_retention WHERE singleton`).Scan(&epoch); err != nil {
+	if err = tx.QueryRowContext(callCtx, `SELECT revision FROM open_platform.audit_retention WHERE singleton`).Scan(&epoch); err != nil {
 		return out, err
 	}
 	var visibility string
 	if q.Snapshot == "" {
-		err = tx.QueryRowContext(ctx, `SELECT pg_current_snapshot()::text`).Scan(&visibility)
+		err = tx.QueryRowContext(callCtx, `SELECT pg_current_snapshot()::text`).Scan(&visibility)
 		if err != nil {
 			return out, err
 		}
@@ -128,7 +133,7 @@ func (r *Repository) ReadAudit(ctx context.Context, q a.Request) (out a.Batch, e
 		source = q.Before.Source
 		id = q.Before.ID
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT id::text, audit_actor,audit_target,audit_action,audit_school,audit_group,reason,result,audit_time
+	rows, err := tx.QueryContext(callCtx, `SELECT id::text, audit_actor,audit_target,audit_action,audit_school,audit_group,reason,result,audit_time
  FROM open_platform.events a WHERE pg_visible_in_snapshot(recorded_xid,$1::pg_snapshot)
  AND EXISTS(SELECT 1 FROM jsonb_to_recordset($2::jsonb) s(school text,"group" text,module text) WHERE (s.school='*' OR s.school=a.audit_school) AND (s."group"='*' OR s."group"=a.audit_group) AND s.module IN ('*','open-platform'))
  AND ($3='' OR audit_actor=$3) AND ($4='' OR audit_target=$4) AND ($5='' OR audit_action=$5)

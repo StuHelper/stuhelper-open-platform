@@ -32,6 +32,7 @@ scenario_tests:
   OP-02:
     - integration_test.go#TestApplicationApprovalAndPerScopeAuthorization
     - projection_test.go#TestAllScopesProjectionsNormalizeNilSlicesFilterInactiveScheduleAndValidateBounds
+    - timeouts_and_guards_test.go#TestOutOfTxTimeoutsNilSourceQuotaErrorWhitelistRedirectParamsAndExchangeClientOracle
   OP-03:
     - integration_test.go#TestSuspensionConsentBindingAndConcurrentQuota
     - integration_test.go#TestRevocationExpiryQuotaAndClosureFence

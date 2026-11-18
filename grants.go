@@ -92,14 +92,16 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 	if e != nil || !validID(id) || in.Revision < 1 {
 		return out, ErrInput
 	}
-	located, e := s.Repo.LocateGrant(ctx, id)
+	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	located, e := s.Repo.LocateGrant(dbCtx, id)
 	if e != nil {
 		return out, e
 	}
 	if located.Owner != p.Owner {
 		return out, ErrNotFound
 	}
-	e = s.transaction(ctx, p.Owner, located.View.AppID, func(t Transaction) error {
+	e = s.transaction(dbCtx, p.Owner, located.View.AppID, func(t Transaction) error {
 		if e := s.activeOwner(t, p.Owner); e != nil {
 			return e
 		}

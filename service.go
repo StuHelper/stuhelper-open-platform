@@ -38,7 +38,7 @@ func (s *Service) now() time.Time {
 }
 func (s *Service) ready() error {
 	u, e := url.Parse(s.Issuer)
-	if s.Repo == nil || len(s.CodeKey) != 32 || e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+	if s.Repo == nil || len(s.CodeKey) != 32 || s.Issuer == "" || len(s.Issuer) > 512 || !utf8.ValidString(s.Issuer) || strings.ContainsFunc(s.Issuer, func(r rune) bool { return unicode.IsControl(r) || unicode.IsSpace(r) }) || strings.Contains(s.Issuer, "#") || e != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Opaque != "" || u.RawQuery != "" || u.Fragment != "" {
 		return ErrUnavailable
 	}
 	return nil
@@ -207,11 +207,21 @@ func validateApp(in *ApplicationInput) error {
 	if !validLine(in.Name, 80, false) || !validText(in.Purpose, 1000, false) || len(in.RedirectURIs) < 1 || len(in.RedirectURIs) > 10 || (in.ClientType != "public" && in.ClientType != "confidential") {
 		return ErrInput
 	}
+	reserved := []string{"code", "state", "iss", "error"}
 	seen := map[string]bool{}
 	for _, raw := range in.RedirectURIs {
 		u, e := url.Parse(raw)
-		if e != nil || !validToken(raw, 2048) || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" || seen[raw] {
+		if e != nil || !validToken(raw, 2048) || strings.ContainsFunc(raw, unicode.IsSpace) || strings.Contains(raw, "#") || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" || seen[raw] {
 			return ErrInput
+		}
+		q, qe := url.ParseQuery(u.RawQuery)
+		if qe != nil {
+			return ErrInput
+		}
+		for _, k := range reserved {
+			if q.Has(k) {
+				return ErrInput
+			}
 		}
 		seen[raw] = true
 	}
