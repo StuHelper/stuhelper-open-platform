@@ -35,7 +35,7 @@ func (s *source) Read(ctx context.Context, owner, scope string, q op.Query) (op.
 	if _, ok := ctx.Deadline(); !ok {
 		return op.Data{}, errors.New("missing deadline")
 	}
-	if s.state.Load() == 1 {
+	if s.state.Load() == 1 && (scope == "catalog" || scope == "public_reviews") {
 		return op.Data{}, op.ErrForbidden
 	}
 	if s.state.Load() == 2 {
@@ -49,11 +49,21 @@ func (s *source) Read(ctx context.Context, owner, scope string, q op.Query) (op.
 			return op.Data{}, ctx.Err()
 		}
 	}
+	now := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 	switch scope {
 	case "profile":
 		return op.Data{Profile: &op.Profile{ID: "public-" + owner, Nickname: owner, Bio: "Synthetic profile"}, QQBinding: &op.QQBinding{Bound: true, Number: "123456"}}, nil
 	case "qq_binding_status", "qq_binding_details":
 		return op.Data{QQBinding: &op.QQBinding{Bound: true, Number: "123456"}}, nil
+	case "schools":
+		return op.Data{Schools: &[]op.School{{ID: "buaa", Name: "Beihang University"}}}, nil
+	case "schedule":
+		return op.Data{Schedule: &[]op.ScheduleItem{
+			{ID: "enr-active", CourseID: "course-1", CourseName: "Operating Systems", TermID: "2026-fall", ClassID: "class-1", Meetings: nil, FetchedAt: now, Active: true},
+			{ID: "enr-dropped", CourseID: "dropped-course", CourseName: "Dropped Course", TermID: "2026-fall", ClassID: "class-2", Meetings: nil, FetchedAt: now, Active: false},
+		}}, nil
+	case "catalog":
+		return op.Data{Catalog: &[]op.CatalogItem{{ID: "course-1", Kind: "course", SchoolID: "buaa", Name: "Operating Systems", Revision: 1}}}, nil
 	case "public_reviews":
 		term := q.TermID
 		if term == "" {
@@ -65,7 +75,7 @@ func (s *source) Read(ctx context.Context, owner, scope string, q op.Query) (op.
 		}
 		return op.Data{Reviews: &items}, nil
 	default:
-		return op.Data{StudentStatus: &op.StudentStatus{Verified: true, EvaluatedAt: time.Now()}}, nil
+		return op.Data{StudentStatus: &op.StudentStatus{Verified: true, EvaluatedAt: now}}, nil
 	}
 }
 
@@ -286,7 +296,7 @@ func TestApplicationApprovalAndPerScopeAuthorization(t *testing.T) {
 		t.Fatal(success.Load())
 	}
 	// Audit failure rolls back the business record and idempotency result together.
-	if _, e = x.db.Exec(`ALTER TABLE open_platform.events ADD CONSTRAINT reject_application CHECK(kind<>'application:') NOT VALID`); e != nil {
+	if _, e = x.db.Exec(`ALTER TABLE open_platform.events ADD CONSTRAINT reject_application CHECK(kind<>'application_submitted') NOT VALID`); e != nil {
 		t.Fatal(e)
 	}
 	_, e = s.Apply(ctx, dev, "", "rollback", op.ApplicationInput{Name: "Rollback", Purpose: "test", RedirectURIs: []string{"https://x.example/cb"}, RequestedScopes: []string{"profile"}, ClientType: "public"})
