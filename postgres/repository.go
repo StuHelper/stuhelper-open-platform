@@ -302,12 +302,12 @@ func (t *transaction) Replay(actor, key string) (string, json.RawMessage, error)
 	e := t.tx.QueryRowContext(t.ctx, `SELECT digest,result FROM open_platform.requests WHERE actor=$1 AND key=$2`, actor, key).Scan(&h, &b)
 	return h, b, safe(e)
 }
-func (t *transaction) SaveReplay(actor, key, digest string, result json.RawMessage) error {
-	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.requests(actor,key,digest,result) VALUES($1,$2,$3,$4)`, actor, key, digest, string(result))
+func (t *transaction) SaveReplay(actor, key, digest string, result json.RawMessage, at time.Time) error {
+	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.requests(actor,key,digest,result,created_at) VALUES($1,$2,$3,$4,$5)`, actor, key, digest, string(result), at)
 	return safe(e)
 }
-func (t *transaction) Event(actor, kind, object, key string) error {
-	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.events(actor,kind,object_id,operation,result) VALUES($1,$2,$3,$4,'success')`, actor, kind, object, key)
+func (t *transaction) Event(actor, kind, object, key, reason string, at time.Time) error {
+	_, e := t.tx.ExecContext(t.ctx, `INSERT INTO open_platform.events(actor,kind,object_id,operation,reason,result,created_at) VALUES($1,$2,$3,$4,$5,'success',$6)`, actor, kind, object, key, reason, at)
 	return safe(e)
 }
 func (r *Repository) WorkCandidates(ctx context.Context, now time.Time, limit int) ([]op.GrantRecord, error) {

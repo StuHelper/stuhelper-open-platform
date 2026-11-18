@@ -100,16 +100,16 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 			return e
 		}
 		var e error
-		out, e = replay(t, p.Owner, key, "revoke:"+id, in, func() (Grant, error) {
+		out, e = replay(t, p.Owner, key, "revoke:"+id, in, s.now(), func() (Grant, auditSpec, error) {
 			g, e := t.Grant(id)
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			if g.View.Revision != in.Revision || !subset(in.Scopes, g.View.Scopes) {
-				return out, ErrConflict
+				return out, auditSpec{}, ErrConflict
 			}
 			if e = s.notice(t, g, in.Scopes, "user_revoked"); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			g.View.Scopes = difference(g.View.Scopes, in.Scopes)
 			if len(g.View.Scopes) == 0 {
@@ -117,9 +117,9 @@ func (s *Service) Revoke(ctx context.Context, p Principal, id, key string, in Re
 			}
 			g.View.Revision++
 			if e = t.SaveGrant(g); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
-			return g.View, nil
+			return g.View, auditSpec{actor: p.Owner, action: "grant_revoked", target: id, reason: "user_revoked"}, nil
 		})
 		return e
 	})
@@ -133,14 +133,14 @@ func (s *Service) CloseAccount(ctx context.Context, owner, closureID string) err
 		return ErrInput
 	}
 	return s.transaction(ctx, owner, "", func(t Transaction) error {
-		_, e := replay(t, owner, "closure:"+closureID, "close-account", closureID, func() (bool, error) {
+		_, e := replay(t, owner, "closure:"+closureID, "close-account", closureID, s.now(), func() (bool, auditSpec, error) {
 			if e := t.CloseOwner(owner, closureID); e != nil {
-				return false, e
+				return false, auditSpec{}, e
 			}
 			if e := t.SuspendOwnedApps(owner); e != nil {
-				return false, e
+				return false, auditSpec{}, e
 			}
-			return true, nil
+			return true, auditSpec{actor: owner, action: "account_closed", target: owner}, nil
 		})
 		return e
 	})
@@ -186,7 +186,7 @@ func (s *Service) Work(ctx context.Context, limit int) (int, error) {
 			if e = t.SaveGrant(g); e != nil {
 				return e
 			}
-			return t.Event(g.Owner, "grant_terminated", g.View.ID, reason)
+			return t.Event(g.Owner, "grant_terminated", g.View.ID, g.View.AppID, reason, s.now())
 		})
 		if e != nil {
 			return done, e
@@ -239,17 +239,21 @@ func (s *Service) Acknowledge(ctx context.Context, p Principal, app, secret, id,
 		if _, e := authenticatedApp(t, p, app, secret); e != nil {
 			return e
 		}
+		auditActor := "app:" + app
+		if secret == "" {
+			auditActor = p.Owner
+		}
 		var e error
-		out, e = replay(t, "app:"+app, key, "notice-ack:"+id, in, func() (Notice, error) {
+		out, e = replay(t, "app:"+app, key, "notice-ack:"+id, in, s.now(), func() (Notice, auditSpec, error) {
 			n, e := t.Notice(id)
 			if e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
 			if n.AppID != app {
-				return out, ErrNotFound
+				return out, auditSpec{}, ErrNotFound
 			}
 			if n.Acknowledgement == "deleted" && in.Status != "deleted" {
-				return out, ErrConflict
+				return out, auditSpec{}, ErrConflict
 			}
 			n.Acknowledgement = in.Status
 			n.Note = in.Note
@@ -259,9 +263,9 @@ func (s *Service) Acknowledge(ctx context.Context, p Principal, app, secret, id,
 				n.SeenAt = &now
 			}
 			if e = t.SaveNotice(n); e != nil {
-				return out, e
+				return out, auditSpec{}, e
 			}
-			return n, nil
+			return n, auditSpec{actor: auditActor, action: "notice_acknowledged", target: n.ID, reason: in.Note}, nil
 		})
 		return e
 	})

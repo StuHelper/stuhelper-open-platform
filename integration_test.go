@@ -276,7 +276,7 @@ func TestApplicationApprovalAndPerScopeAuthorization(t *testing.T) {
 		t.Fatal(success.Load())
 	}
 	// Audit failure rolls back the business record and idempotency result together.
-	if _, e = x.db.Exec(`ALTER TABLE open_platform.events ADD CONSTRAINT reject_application CHECK(kind<>'application:') NOT VALID`); e != nil {
+	if _, e = x.db.Exec(`ALTER TABLE open_platform.events ADD CONSTRAINT reject_application CHECK(kind<>'application_submitted') NOT VALID`); e != nil {
 		t.Fatal(e)
 	}
 	_, e = s.Apply(ctx, dev, "", "rollback", op.ApplicationInput{Name: "Rollback", Purpose: "test", RedirectURIs: []string{"https://x.example/cb"}, RequestedScopes: []string{"profile"}, ClientType: "public"})

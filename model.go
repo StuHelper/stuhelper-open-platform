@@ -262,6 +262,6 @@ type Transaction interface {
 	Notices(string, string, int) ([]Notice, error)
 	SaveNotice(Notice) error
 	Replay(string, string) (string, json.RawMessage, error)
-	SaveReplay(string, string, string, json.RawMessage) error
-	Event(string, string, string, string) error
+	SaveReplay(string, string, string, json.RawMessage, time.Time) error
+	Event(string, string, string, string, string, time.Time) error
 }
