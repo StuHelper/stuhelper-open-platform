@@ -1,10 +1,12 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	op "github.com/StuHelper/stuhelper-open-platform"
 	"io"
+	"mime"
 	"net/http"
 	"slices"
 	"strconv"
@@ -39,8 +41,24 @@ func failure(w http.ResponseWriter, e error) {
 	}
 	write(w, status, map[string]string{"code": code})
 }
+func validMediaType(r *http.Request, expected string) bool {
+	values := r.Header.Values("Content-Type")
+	if len(values) != 1 {
+		return false
+	}
+	mediaType, params, err := mime.ParseMediaType(values[0])
+	if err != nil || mediaType != expected {
+		return false
+	}
+	for k, v := range params {
+		if k != "charset" || !strings.EqualFold(v, "utf-8") {
+			return false
+		}
+	}
+	return true
+}
 func body(r *http.Request, out any) error {
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+	if !validMediaType(r, "application/json") {
 		return op.ErrInput
 	}
 	d := json.NewDecoder(r.Body)
@@ -234,7 +252,7 @@ func queryPage(r *http.Request) (string, int, error) {
 }
 func (h Handler) token(w http.ResponseWriter, r *http.Request) {
 	bad := func(code string, status int) { write(w, status, map[string]string{"error": code}) }
-	if len(r.URL.RawQuery) != 0 || r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" || r.ParseForm() != nil {
+	if len(r.URL.RawQuery) != 0 || !validMediaType(r, "application/x-www-form-urlencoded") || r.ParseForm() != nil {
 		bad("invalid_request", 400)
 		return
 	}
@@ -262,7 +280,7 @@ func (h Handler) token(w http.ResponseWriter, r *http.Request) {
 			bad("invalid_client", 401)
 		} else if errors.Is(e, op.ErrInput) {
 			bad("invalid_request", 400)
-		} else if errors.Is(e, op.ErrUnavailable) {
+		} else if errors.Is(e, op.ErrUnavailable) || errors.Is(e, op.ErrConflict) || errors.Is(e, context.DeadlineExceeded) || errors.Is(e, context.Canceled) {
 			bad("temporarily_unavailable", 503)
 		} else {
 			bad("invalid_grant", 400)
