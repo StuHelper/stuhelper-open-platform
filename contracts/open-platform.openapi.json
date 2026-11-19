@@ -26,74 +26,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -108,14 +59,7 @@
         },
         "parameters": [
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       },
@@ -139,94 +83,33 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "parameters": [
           {
-            "name": "after",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/PageAfter"
           },
           {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            }
+            "$ref": "#/components/parameters/PageLimit"
           }
         ]
       }
@@ -234,7 +117,7 @@
     "/api/v1/open-platform/admin/apps": {
       "get": {
         "operationId": "listApplications",
-        "description": "",
+        "description": "按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。",
         "security": [
           {
             "session": []
@@ -246,7 +129,83 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Applications"
+                  "$ref": "#/components/schemas/AdminApplications"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExceeded"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "description": "按应用审批状态筛选。",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "changes_requested",
+                "active",
+                "suspended"
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "description": "按开发者账号标识精确筛选。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/PageLimit"
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/admin/apps/{id}": {
+      "get": {
+        "operationId": "getAdminApplication",
+        "description": "管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminApplication"
                 }
               }
             }
@@ -324,21 +283,12 @@
         },
         "parameters": [
           {
-            "name": "after",
-            "in": "query",
+            "name": "id",
+            "in": "path",
+            "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 128
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
+              "maxLength": 64
             }
           }
         ]
@@ -365,85 +315,30 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           }
         ]
       }
@@ -469,74 +364,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -551,23 +397,10 @@
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           },
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -593,74 +426,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -675,23 +459,10 @@
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           },
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -712,6 +483,481 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Credential"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExceeded"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Revision"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceIdPath"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/consents": {
+      "post": {
+        "operationId": "prepareConsent",
+        "description": "登录用户创建 5 分钟有效的授权请求。服务端绑定本人、应用修订、精确回调、state、范围及 PKCE S256。",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Consent"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExceeded"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/consents/{id}": {
+      "get": {
+        "operationId": "getConsent",
+        "description": "",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Consent"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExceeded"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceIdPath"
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/consents/{id}/decision": {
+      "post": {
+        "operationId": "decideConsent",
+        "description": "显式逐项同意请求范围的子集，或拒绝。返回包含 code 或 access_denied 及 state/iss 的回调 URL，客户端必须校验。重试不产生第二份授权。",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExceeded"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentDecision"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceIdPath"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/token": {
+      "post": {
+        "operationId": "exchangeCode",
+        "description": "单次授权码有效期 60 秒。confidential 应用必须使用 HTTP Basic 凭据；public 应用仅使用 client_id 和 PKCE S256，不携带服务端凭据。不发行刷新令牌，交换结果不明时重新发起授权。",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/OAuthBadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/OAuthUnauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/OAuthForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/OAuthNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/OAuthConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/OAuthQuotaExceeded"
+          },
+          "503": {
+            "$ref": "#/components/responses/OAuthUnavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/open-platform/grants": {
+      "get": {
+        "operationId": "listOwnGrants",
+        "description": "默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grants"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExceeded"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "description": "按当前有效状态筛选授权列表。",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "revoked"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/PageLimit"
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/grants/{id}/revoke": {
+      "post": {
+        "operationId": "revokeScopes",
+        "description": "撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Grant"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExceeded"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ResourceIdPath"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/apps/{id}/notices": {
+      "get": {
+        "operationId": "listNotices",
+        "description": "使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。支持 pending_ack 筛选尚未提交删除或法定保留声明的通知。停用或归档后仍可查询；分页最多 100 条。",
+        "security": [
+          {
+            "clientCredential": []
+          },
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notices"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExceeded"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "parameters": [
+          {
+            "name": "pending_ack",
+            "in": "query",
+            "description": "为 true 时仅返回尚未回报 deleted 或 retention_exception 的通知。",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/PageLimit"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceIdPath"
+          }
+        ]
+      }
+    },
+    "/api/v1/open-platform/apps/{id}/archive": {
+      "post": {
+        "operationId": "archiveApplication",
+        "description": "开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
                 }
               }
             }
@@ -804,7 +1050,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 128
+              "maxLength": 64
             }
           },
           {
@@ -820,125 +1066,10 @@
         ]
       }
     },
-    "/api/v1/open-platform/consents": {
-      "post": {
-        "operationId": "prepareConsent",
-        "description": "登录用户创建 5 分钟有效的授权请求。服务端绑定本人、应用修订、精确回调、state、范围及 PKCE S256。",
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Consent"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConsentInput"
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
-          }
-        ]
-      }
-    },
-    "/api/v1/open-platform/consents/{id}": {
+    "/api/v1/open-platform/admin/notices/overdue": {
       "get": {
-        "operationId": "getConsent",
-        "description": "",
+        "operationId": "listOverdueNoticeApplications",
+        "description": "管理后台巡检超过约定天数仍未提交 deleted 或 retention_exception 回执的应用列表，按最早逾期通知时间升序分页。",
         "security": [
           {
             "session": []
@@ -950,7 +1081,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Consent"
+                  "$ref": "#/components/schemas/OverdueNoticeApplications"
                 }
               }
             }
@@ -1028,332 +1159,16 @@
         },
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
+            "name": "older_than_days",
+            "in": "query",
+            "description": "判定为逾期的最小天数。",
             "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
-          }
-        ]
-      }
-    },
-    "/api/v1/open-platform/consents/{id}/decision": {
-      "post": {
-        "operationId": "decideConsent",
-        "description": "显式逐项同意请求范围的子集，或拒绝。返回包含 code 或 access_denied 及 state/iss 的回调 URL，客户端必须校验。重试不产生第二份授权。",
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthorizationResult"
-                }
-              }
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 7
             }
           },
-          "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConsentDecision"
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
-          }
-        ]
-      }
-    },
-    "/api/v1/open-platform/token": {
-      "post": {
-        "operationId": "exchangeCode",
-        "description": "单次授权码有效期 60 秒。confidential 应用必须使用 HTTP Basic 凭据；public 应用仅使用 client_id 和 PKCE S256，不携带服务端凭据。不发行刷新令牌，交换结果不明时重新发起授权。",
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Token"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OAuthProblem"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/x-www-form-urlencoded": {
-              "schema": {
-                "$ref": "#/components/schemas/TokenInput"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/open-platform/grants": {
-      "get": {
-        "operationId": "listOwnGrants",
-        "description": "",
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Grants"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
           {
             "name": "after",
             "in": "query",
@@ -1370,255 +1185,6 @@
               "minimum": 1,
               "maximum": 100,
               "default": 50
-            }
-          }
-        ]
-      }
-    },
-    "/api/v1/open-platform/grants/{id}/revoke": {
-      "post": {
-        "operationId": "revokeScopes",
-        "description": "撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。",
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Grant"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RevokeInput"
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
-          }
-        ]
-      }
-    },
-    "/api/v1/open-platform/apps/{id}/notices": {
-      "get": {
-        "operationId": "listNotices",
-        "description": "使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。停用后仍可查询；分页最多 100 条。",
-        "security": [
-          {
-            "clientCredential": []
-          },
-          {
-            "session": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Notices"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "after",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 50
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
             }
           }
         ]
@@ -1648,74 +1214,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "requestBody": {
@@ -1730,32 +1247,13 @@
         },
         "parameters": [
           {
-            "name": "notice_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/NoticeIdPath"
           },
           {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/ResourceIdPath"
           },
           {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1763,7 +1261,7 @@
     "/api/v1/open-platform/data/{scope}": {
       "get": {
         "operationId": "readAuthorizedData",
-        "description": "仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。",
+        "description": "仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额并通过响应头返回余量，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。",
         "security": [
           {
             "businessToken": []
@@ -1772,6 +1270,22 @@
         "responses": {
           "200": {
             "description": "成功",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "description": "应用当日 UTC 调用配额上限。",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "X-RateLimit-Remaining": {
+                "description": "应用当日 UTC 剩余调用配额。",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1781,74 +1295,25 @@
             }
           },
           "400": {
-            "description": "输入无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
-            "description": "身份或令牌无效",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "权限不足",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "对象不存在或不属于本人",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/NotFound"
           },
           "409": {
-            "description": "修订或幂等冲突",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
-            "description": "调用配额用尽",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/QuotaExceeded"
           },
           "503": {
-            "description": "依赖不可用",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Unavailable"
           }
         },
         "parameters": [
@@ -1859,7 +1324,7 @@
               "type": "string",
               "maxLength": 500
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "按单个对象 ID 精确读取详情；仅适用于 catalog 与 public_reviews 范围，其他范围传入返回 400。"
           },
           {
             "name": "kind",
@@ -1868,7 +1333,7 @@
               "type": "string",
               "maxLength": 500
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "按对象类别过滤（如目录的 course/teacher，评价的 course/mentor）；仅适用于 catalog 与 public_reviews 范围。"
           },
           {
             "name": "query",
@@ -1877,7 +1342,7 @@
               "type": "string",
               "maxLength": 500
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "关键词搜索词；仅适用于 catalog 范围，其他范围传入返回 400。"
           },
           {
             "name": "term_id",
@@ -1886,7 +1351,7 @@
               "type": "string",
               "maxLength": 500
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "按学期标识过滤选课排课、目录或课程评价；适用于 schedule、catalog 与 public_reviews 范围。"
           },
           {
             "name": "target_id",
@@ -1895,7 +1360,7 @@
               "type": "string",
               "maxLength": 500
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "按评价目标（课程或教师 ID）过滤公开评价；仅适用于 public_reviews 范围。"
           },
           {
             "name": "after",
@@ -1904,7 +1369,7 @@
               "type": "string",
               "maxLength": 2048
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "数据列表分页游标；仅适用于 schedule、catalog 与 public_reviews 列表查询，单对象范围禁止传入。"
           },
           {
             "name": "limit",
@@ -1915,15 +1380,10 @@
               "maximum": 100,
               "default": 50
             },
-            "description": "仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。"
+            "description": "数据列表单页条数上限（1–100，默认 50）；仅适用于 schedule、catalog 与 public_reviews 列表查询，单对象范围禁止传入。"
           },
           {
-            "name": "scope",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/Scope"
-            }
+            "$ref": "#/components/parameters/ScopePath"
           }
         ]
       }
@@ -1934,7 +1394,7 @@
       "session": {
         "type": "http",
         "scheme": "bearer",
-        "description": "StuHelper Next 用户会话"
+        "description": "StuHelper 用户会话"
       },
       "businessToken": {
         "type": "http",
@@ -1961,6 +1421,27 @@
         ],
         "description": "QQ binding status and QQ binding details are separately requested, approved and consented scopes. Status returns only bound; details returns bound and the bound number. Neither scope implies the other."
       },
+      "ProblemReason": {
+        "type": "string",
+        "description": "机器可读的细分错误原因码，用于多语言界面展示精准恢复指引。",
+        "enum": [
+          "consent_expired",
+          "consent_already_decided",
+          "application_revision_changed",
+          "revision_mismatch",
+          "idempotency_conflict",
+          "application_limit_reached",
+          "pending_consent_limit_reached",
+          "state_conflict",
+          "content_admission_denied",
+          "scope_not_authorized",
+          "account_closed",
+          "application_inactive",
+          "redirect_uri_mismatch",
+          "admin_required",
+          "daily_quota_exceeded"
+        ]
+      },
       "Problem": {
         "type": "object",
         "additionalProperties": false,
@@ -1968,6 +1449,9 @@
           "code": {
             "type": "string",
             "maxLength": 80
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ProblemReason"
           }
         },
         "required": [
@@ -2018,14 +1502,18 @@
               "type": "string",
               "maxLength": 2048
             },
-            "maxItems": 10
+            "minItems": 1,
+            "maxItems": 10,
+            "uniqueItems": true
           },
           "requested_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "client_type": {
             "type": "string",
@@ -2069,21 +1557,26 @@
               "type": "string",
               "maxLength": 2048
             },
-            "maxItems": 10
+            "minItems": 1,
+            "maxItems": 10,
+            "uniqueItems": true
           },
           "requested_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "approved_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "client_type": {
             "type": "string",
@@ -2115,6 +1608,16 @@
           },
           "policy": {
             "$ref": "#/components/schemas/Policy"
+          },
+          "quota_used": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "应用在当前 UTC 日已消耗的数据读取配额；查看本人单应用详情时返回。"
+          },
+          "archived_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "开发者主动归档应用的时间；归档满 12 个月后随数据保留清理释放配额。"
           },
           "created_at": {
             "type": "string",
@@ -2158,7 +1661,8 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "policy": {
             "$ref": "#/components/schemas/Policy"
@@ -2229,6 +1733,7 @@
           },
           "state": {
             "type": "string",
+            "minLength": 16,
             "maxLength": 512
           },
           "scope": {
@@ -2236,7 +1741,9 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "code_challenge": {
             "type": "string",
@@ -2267,14 +1774,16 @@
             "maxLength": 64
           },
           "application": {
-            "$ref": "#/components/schemas/Application"
+            "$ref": "#/components/schemas/ConsentApplication"
           },
           "requested_scopes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "redirect_uri": {
             "type": "string",
@@ -2294,13 +1803,29 @@
               ]
             },
             "maxItems": 2,
+            "uniqueItems": true,
             "description": "Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested."
+          },
+          "active_granted_scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scope"
+            },
+            "maxItems": 8,
+            "uniqueItems": true,
+            "description": "当前用户对该应用仍处于有效期的已授权范围；无有效授权时为空数组。"
+          },
+          "active_grant_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "当前有效授权的到期时间；无有效授权时省略。"
           }
         },
         "required": [
           "id",
           "application",
           "requested_scopes",
+          "active_granted_scopes",
           "redirect_uri",
           "expires_at",
           "qq_tiers"
@@ -2322,7 +1847,17 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "maxItems": 8,
+            "uniqueItems": true
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "merge",
+              "replace"
+            ],
+            "default": "merge",
+            "description": "同意时的范围合并方式：merge 保留当前仍有效且获批的既有范围并与本次勾选范围求并集；replace 仅保留本次勾选范围并对移除范围生成停止使用通知。"
           }
         },
         "required": [
@@ -2439,7 +1974,8 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "state": {
             "type": "string",
@@ -2455,6 +1991,29 @@
           "revision": {
             "type": "integer",
             "format": "int64"
+          },
+          "termination_reason": {
+            "type": "string",
+            "enum": [
+              "user_revoked",
+              "expired",
+              "application_changed",
+              "account_closed"
+            ],
+            "description": "授权已失效时的终止原因；当前有效授权省略该字段。"
+          },
+          "granted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_data_read_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "最近一次向该应用返回业务数据的时间；尚未读取时省略。"
           }
         },
         "required": [
@@ -2464,6 +2023,8 @@
           "subject",
           "scopes",
           "state",
+          "granted_at",
+          "updated_at",
           "expires_at",
           "revision"
         ]
@@ -2481,12 +2042,17 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
+          },
+          "revoke_all": {
+            "type": "boolean",
+            "description": "为 true 时直接撤回整单当前活跃授权，无需传入 scopes。"
           }
         },
         "required": [
-          "revision",
-          "scopes"
+          "revision"
         ]
       },
       "Notice": {
@@ -2510,7 +2076,9 @@
             "items": {
               "$ref": "#/components/schemas/Scope"
             },
-            "maxItems": 8
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
           },
           "reason": {
             "type": "string",
@@ -2604,6 +2172,143 @@
           "items"
         ]
       },
+      "AdminApplication": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "purpose": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "redirect_uris": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 2048
+            },
+            "maxItems": 10
+          },
+          "requested_scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scope"
+            },
+            "maxItems": 8
+          },
+          "approved_scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scope"
+            },
+            "maxItems": 8
+          },
+          "client_type": {
+            "type": "string",
+            "enum": [
+              "public",
+              "confidential"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "changes_requested",
+              "active",
+              "suspended"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "credential_revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/Policy"
+          },
+          "active_grants": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "当前仍处于有效期的用户授权数量。"
+          },
+          "reviewed_by": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "最近一次执行审批或停用操作的管理员账号标识。"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "最近一次执行审批或停用操作的时间。"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "name",
+          "purpose",
+          "redirect_uris",
+          "requested_scopes",
+          "approved_scopes",
+          "client_type",
+          "state",
+          "note",
+          "revision",
+          "credential_revision",
+          "policy",
+          "active_grants",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "AdminApplications": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminApplication"
+            },
+            "maxItems": 100
+          },
+          "next": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
       "Grants": {
         "type": "object",
         "additionalProperties": false,
@@ -2632,6 +2337,69 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Notice"
+            },
+            "maxItems": 100
+          },
+          "next": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "OverdueNoticeApplication": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "app_id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "app_name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "owner": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "changes_requested",
+              "active",
+              "suspended"
+            ]
+          },
+          "overdue_notices": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "oldest_notice_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "app_id",
+          "app_name",
+          "owner",
+          "state",
+          "overdue_notices",
+          "oldest_notice_at"
+        ]
+      },
+      "OverdueNoticeApplications": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverdueNoticeApplication"
             },
             "maxItems": 100
           },
@@ -2707,11 +2475,11 @@
           },
           "nickname": {
             "type": "string",
-            "maxLength": 80
+            "maxLength": 20
           },
           "bio": {
             "type": "string",
-            "maxLength": 480
+            "maxLength": 120
           }
         },
         "required": [
@@ -2835,6 +2603,11 @@
           "target_id": {
             "type": "string",
             "maxLength": 128
+          },
+          "term_id": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "评价关联的修读学期标识；导师评价或未指定学期时省略。"
           },
           "body": {
             "type": "string",
@@ -2962,6 +2735,258 @@
           "time_text",
           "location"
         ]
+      },
+      "ConsentApplication": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "purpose": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "client_type": {
+            "type": "string",
+            "enum": [
+              "public",
+              "confidential"
+            ]
+          },
+          "grant_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 31536000
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "purpose",
+          "client_type",
+          "grant_seconds"
+        ]
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "PageAfter": {
+        "name": "after",
+        "in": "query",
+        "description": "上一页返回的游标，省略时从首页开始读取。",
+        "schema": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "PageLimit": {
+        "name": "limit",
+        "in": "query",
+        "description": "单页最多返回条数（1–100，默认 50）。",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 50
+        }
+      },
+      "ResourceIdPath": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "目标资源标识。",
+        "schema": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "NoticeIdPath": {
+        "name": "notice_id",
+        "in": "path",
+        "required": true,
+        "description": "撤回通知标识。",
+        "schema": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "ScopePath": {
+        "name": "scope",
+        "in": "path",
+        "required": true,
+        "description": "请求的单一业务信息范围。",
+        "schema": {
+          "$ref": "#/components/schemas/Scope"
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "输入无效",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "身份或令牌无效",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "权限不足",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "对象不存在或不属于本人",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "修订或幂等冲突",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "QuotaExceeded": {
+        "description": "调用配额用尽",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        },
+        "headers": {
+          "Retry-After": {
+            "description": "距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "依赖不可用",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "OAuthBadRequest": {
+        "description": "请求或授权码无效",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthUnauthorized": {
+        "description": "客户端凭据无效",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthForbidden": {
+        "description": "权限不足",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthNotFound": {
+        "description": "对象不存在",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthConflict": {
+        "description": "状态冲突",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthQuotaExceeded": {
+        "description": "调用配额用尽",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
+      },
+      "OAuthUnavailable": {
+        "description": "依赖不可用",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OAuthProblem"
+            }
+          }
+        }
       }
     }
   }

@@ -28,7 +28,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description 按更新时间与标识降序分页，支持按审批状态和申请人账号筛选。 */
         get: operations["listApplications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-platform/admin/apps/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 管理员查看单个应用详情，包含申请人、最近更新时间、上次审核人与当前有效用户授权数。 */
+        get: operations["getAdminApplication"];
         put?: never;
         post?: never;
         delete?: never;
@@ -178,6 +196,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description 默认按有效授权在前、最近更新时间与标识降序分页，可按 state 筛选有效或已失效授权。 */
         get: operations["listOwnGrants"];
         put?: never;
         post?: never;
@@ -196,7 +215,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description 撤回指定范围，立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。 */
+        /** @description 撤回指定范围或整单活跃授权（设置 revoke_all 为 true 或省略 scopes），立即使旧令牌失效。仍保留的范围可重新发起授权取得新令牌。 */
         post: operations["revokeScopes"];
         delete?: never;
         options?: never;
@@ -211,8 +230,42 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。停用后仍可查询；分页最多 100 条。 */
+        /** @description 使用应用 HTTP Basic 凭据或开发者会话读取。查询记录 seen_at，不能据此认定已完成删除。支持 pending_ack 筛选尚未提交删除或法定保留声明的通知。停用或归档后仍可查询；分页最多 100 条。 */
         get: operations["listNotices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-platform/apps/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description 开发者主动停用并归档本人应用，立即终止已有授权；归档满 12 个月后随数据保留任务清理并释放本人应用数量配额。 */
+        post: operations["archiveApplication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-platform/admin/notices/overdue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 管理后台巡检超过约定天数仍未提交 deleted 或 retention_exception 回执的应用列表，按最早逾期通知时间升序分页。 */
+        get: operations["listOverdueNoticeApplications"];
         put?: never;
         post?: never;
         delete?: never;
@@ -245,7 +298,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。 */
+        /** @description 仅按令牌所属用户读取单一获准范围，不接受目标账号。每次读取前后检查当前应用、授权、期限与账号状态；目录和公开评价仍由提供方检查当前内容准入。按 UTC 日计应用配额并通过响应头返回余量，授权后的尝试含提供方失败均计入。缺失可信来源返回 503。 */
         get: operations["readAuthorizedData"];
         put?: never;
         post?: never;
@@ -264,8 +317,14 @@ export interface components {
          * @enum {string}
          */
         Scope: "student_status" | "schools" | "qq_binding_status" | "qq_binding_details" | "profile" | "schedule" | "catalog" | "public_reviews";
+        /**
+         * @description 机器可读的细分错误原因码，用于多语言界面展示精准恢复指引。
+         * @enum {string}
+         */
+        ProblemReason: "consent_expired" | "consent_already_decided" | "application_revision_changed" | "revision_mismatch" | "idempotency_conflict" | "application_limit_reached" | "pending_consent_limit_reached" | "state_conflict" | "content_admission_denied" | "scope_not_authorized" | "account_closed" | "application_inactive" | "redirect_uri_mismatch" | "admin_required" | "daily_quota_exceeded";
         Problem: {
             code: string;
+            reason?: components["schemas"]["ProblemReason"];
         };
         Policy: {
             grant_seconds: number;
@@ -299,6 +358,13 @@ export interface components {
             /** Format: int64 */
             credential_revision: number;
             policy: components["schemas"]["Policy"];
+            /** @description 应用在当前 UTC 日已消耗的数据读取配额；查看本人单应用详情时返回。 */
+            quota_used?: number;
+            /**
+             * Format: date-time
+             * @description 开发者主动归档应用的时间；归档满 12 个月后随数据保留清理释放配额。
+             */
+            archived_at?: string;
             /** Format: date-time */
             created_at: string;
         };
@@ -333,18 +399,31 @@ export interface components {
         };
         Consent: {
             id: string;
-            application: components["schemas"]["Application"];
+            application: components["schemas"]["ConsentApplication"];
             requested_scopes: components["schemas"]["Scope"][];
             redirect_uri: string;
             /** Format: date-time */
             expires_at: string;
             /** @description Requested QQ disclosure tiers shown on the consent page; empty when no QQ scope is requested. */
             qq_tiers: ("binding_status" | "binding_status_and_number")[];
+            /** @description 当前用户对该应用仍处于有效期的已授权范围；无有效授权时为空数组。 */
+            active_granted_scopes: components["schemas"]["Scope"][];
+            /**
+             * Format: date-time
+             * @description 当前有效授权的到期时间；无有效授权时省略。
+             */
+            active_grant_expires_at?: string;
         };
         ConsentDecision: {
             /** @enum {string} */
             decision: "approve" | "deny";
             scopes: components["schemas"]["Scope"][];
+            /**
+             * @description 同意时的范围合并方式：merge 保留当前仍有效且获批的既有范围并与本次勾选范围求并集；replace 仅保留本次勾选范围并对移除范围生成停止使用通知。
+             * @default merge
+             * @enum {string}
+             */
+            mode: "merge" | "replace";
         };
         AuthorizationResult: {
             redirect_uri: string;
@@ -378,11 +457,27 @@ export interface components {
             expires_at: string;
             /** Format: int64 */
             revision: number;
+            /**
+             * @description 授权已失效时的终止原因；当前有效授权省略该字段。
+             * @enum {string}
+             */
+            termination_reason?: "user_revoked" | "expired" | "application_changed" | "account_closed";
+            /** Format: date-time */
+            granted_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /**
+             * Format: date-time
+             * @description 最近一次向该应用返回业务数据的时间；尚未读取时省略。
+             */
+            last_data_read_at?: string;
         };
         RevokeInput: {
             /** Format: int64 */
             revision: number;
-            scopes: components["schemas"]["Scope"][];
+            scopes?: components["schemas"]["Scope"][];
+            /** @description 为 true 时直接撤回整单当前活跃授权，无需传入 scopes。 */
+            revoke_all?: boolean;
         };
         Notice: {
             id: string;
@@ -412,12 +507,62 @@ export interface components {
             items: components["schemas"]["Application"][];
             next?: string;
         };
+        AdminApplication: {
+            id: string;
+            owner: string;
+            name: string;
+            purpose: string;
+            redirect_uris: string[];
+            requested_scopes: components["schemas"]["Scope"][];
+            approved_scopes: components["schemas"]["Scope"][];
+            /** @enum {string} */
+            client_type: "public" | "confidential";
+            /** @enum {string} */
+            state: "pending" | "changes_requested" | "active" | "suspended";
+            note: string;
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            credential_revision: number;
+            policy: components["schemas"]["Policy"];
+            /** @description 当前仍处于有效期的用户授权数量。 */
+            active_grants: number;
+            /** @description 最近一次执行审批或停用操作的管理员账号标识。 */
+            reviewed_by?: string;
+            /**
+             * Format: date-time
+             * @description 最近一次执行审批或停用操作的时间。
+             */
+            reviewed_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AdminApplications: {
+            items: components["schemas"]["AdminApplication"][];
+            next?: string;
+        };
         Grants: {
             items: components["schemas"]["Grant"][];
             next?: string;
         };
         Notices: {
             items: components["schemas"]["Notice"][];
+            next?: string;
+        };
+        OverdueNoticeApplication: {
+            app_id: string;
+            app_name: string;
+            owner: string;
+            /** @enum {string} */
+            state: "pending" | "changes_requested" | "active" | "suspended";
+            overdue_notices: number;
+            /** Format: date-time */
+            oldest_notice_at: string;
+        };
+        OverdueNoticeApplications: {
+            items: components["schemas"]["OverdueNoticeApplication"][];
             next?: string;
         };
         StudentStatus: {
@@ -468,6 +613,8 @@ export interface components {
             id: string;
             kind: string;
             target_id: string;
+            /** @description 评价关联的修读学期标识；导师评价或未指定学期时省略。 */
+            term_id?: string;
             body: string;
             /** Format: date-time */
             created_at: string;
@@ -494,9 +641,160 @@ export interface components {
             time_text: string;
             location: string;
         };
+        /** @description 面向授权同意页展示的应用公开摘要，不暴露开发者管理字段。 */
+        ConsentApplication: {
+            id: string;
+            name: string;
+            purpose: string;
+            /** @enum {string} */
+            client_type: "public" | "confidential";
+            grant_seconds: number;
+        };
     };
-    responses: never;
-    parameters: never;
+    responses: {
+        /** @description 输入无效 */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description 身份或令牌无效 */
+        Unauthenticated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description 权限不足 */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description 对象不存在或不属于本人 */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description 修订或幂等冲突 */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description 调用配额用尽 */
+        QuotaExceeded: {
+            headers: {
+                /** @description 距离下一个 UTC 00:00:00 日配额重置窗口的剩余秒数。 */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description 依赖不可用 */
+        Unavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description 请求或授权码无效 */
+        OAuthBadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["OAuthProblem"];
+            };
+        };
+        /** @description 客户端凭据无效 */
+        OAuthUnauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["OAuthProblem"];
+            };
+        };
+        /** @description 权限不足 */
+        OAuthForbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["OAuthProblem"];
+            };
+        };
+        /** @description 对象不存在 */
+        OAuthNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["OAuthProblem"];
+            };
+        };
+        /** @description 状态冲突 */
+        OAuthConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["OAuthProblem"];
+            };
+        };
+        /** @description 调用配额用尽 */
+        OAuthQuotaExceeded: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["OAuthProblem"];
+            };
+        };
+        /** @description 依赖不可用 */
+        OAuthUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["OAuthProblem"];
+            };
+        };
+    };
+    parameters: {
+        /** @description 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。 */
+        IdempotencyKey: string;
+        /** @description 上一页返回的游标，省略时从首页开始读取。 */
+        PageAfter: string;
+        /** @description 单页最多返回条数（1–100，默认 50）。 */
+        PageLimit: number;
+        /** @description 目标资源标识。 */
+        ResourceIdPath: string;
+        /** @description 撤回通知标识。 */
+        NoticeIdPath: string;
+        /** @description 请求的单一业务信息范围。 */
+        ScopePath: components["schemas"]["Scope"];
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -506,8 +804,10 @@ export interface operations {
     listOwnApplications: {
         parameters: {
             query?: {
-                after?: string;
-                limit?: number;
+                /** @description 上一页返回的游标，省略时从首页开始读取。 */
+                after?: components["parameters"]["PageAfter"];
+                /** @description 单页最多返回条数（1–100，默认 50）。 */
+                limit?: components["parameters"]["PageLimit"];
             };
             header?: never;
             path?: never;
@@ -524,76 +824,21 @@ export interface operations {
                     "application/json": components["schemas"]["Applications"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     createApplication: {
         parameters: {
             query?: never;
             header: {
-                "Idempotency-Key": string;
+                /** @description 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path?: never;
             cookie?: never;
@@ -613,76 +858,26 @@ export interface operations {
                     "application/json": components["schemas"]["Application"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     listApplications: {
         parameters: {
             query?: {
-                after?: string;
-                limit?: number;
+                /** @description 按应用审批状态筛选。 */
+                state?: "pending" | "changes_requested" | "active" | "suspended";
+                /** @description 按开发者账号标识精确筛选。 */
+                owner?: string;
+                /** @description 上一页返回的游标，省略时从首页开始读取。 */
+                after?: components["parameters"]["PageAfter"];
+                /** @description 单页最多返回条数（1–100，默认 50）。 */
+                limit?: components["parameters"]["PageLimit"];
             };
             header?: never;
             path?: never;
@@ -696,7 +891,36 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Applications"];
+                    "application/json": components["schemas"]["AdminApplications"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getAdminApplication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminApplication"];
                 };
             };
             /** @description 输入无效 */
@@ -769,7 +993,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description 目标资源标识。 */
+                id: components["parameters"]["ResourceIdPath"];
             };
             cookie?: never;
         };
@@ -784,79 +1009,25 @@ export interface operations {
                     "application/json": components["schemas"]["Application"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     resubmitApplication: {
         parameters: {
             query?: never;
             header: {
-                "Idempotency-Key": string;
+                /** @description 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path: {
-                id: string;
+                /** @description 目标资源标识。 */
+                id: components["parameters"]["ResourceIdPath"];
             };
             cookie?: never;
         };
@@ -875,79 +1046,25 @@ export interface operations {
                     "application/json": components["schemas"]["Application"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     reviewApplication: {
         parameters: {
             query?: never;
             header: {
-                "Idempotency-Key": string;
+                /** @description 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path: {
-                id: string;
+                /** @description 目标资源标识。 */
+                id: components["parameters"]["ResourceIdPath"];
             };
             cookie?: never;
         };
@@ -966,79 +1083,25 @@ export interface operations {
                     "application/json": components["schemas"]["Application"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     rotateClientCredential: {
         parameters: {
             query?: never;
             header: {
-                "Idempotency-Key": string;
+                /** @description 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path: {
-                id: string;
+                /** @description 目标资源标识。 */
+                id: components["parameters"]["ResourceIdPath"];
             };
             cookie?: never;
         };
@@ -1057,76 +1120,21 @@ export interface operations {
                     "application/json": components["schemas"]["Credential"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     prepareConsent: {
         parameters: {
             query?: never;
             header: {
-                "Idempotency-Key": string;
+                /** @description 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path?: never;
             cookie?: never;
@@ -1146,69 +1154,13 @@ export interface operations {
                     "application/json": components["schemas"]["Consent"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     getConsent: {
@@ -1216,7 +1168,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description 目标资源标识。 */
+                id: components["parameters"]["ResourceIdPath"];
             };
             cookie?: never;
         };
@@ -1231,79 +1184,25 @@ export interface operations {
                     "application/json": components["schemas"]["Consent"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     decideConsent: {
         parameters: {
             query?: never;
             header: {
-                "Idempotency-Key": string;
+                /** @description 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path: {
-                id: string;
+                /** @description 目标资源标识。 */
+                id: components["parameters"]["ResourceIdPath"];
             };
             cookie?: never;
         };
@@ -1322,69 +1221,13 @@ export interface operations {
                     "application/json": components["schemas"]["AuthorizationResult"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     exchangeCode: {
@@ -1409,76 +1252,24 @@ export interface operations {
                     "application/json": components["schemas"]["Token"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OAuthProblem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OAuthProblem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OAuthProblem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OAuthProblem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OAuthProblem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OAuthProblem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OAuthProblem"];
-                };
-            };
+            400: components["responses"]["OAuthBadRequest"];
+            401: components["responses"]["OAuthUnauthorized"];
+            403: components["responses"]["OAuthForbidden"];
+            404: components["responses"]["OAuthNotFound"];
+            409: components["responses"]["OAuthConflict"];
+            429: components["responses"]["OAuthQuotaExceeded"];
+            503: components["responses"]["OAuthUnavailable"];
         };
     };
     listOwnGrants: {
         parameters: {
             query?: {
-                after?: string;
-                limit?: number;
+                /** @description 按当前有效状态筛选授权列表。 */
+                state?: "active" | "revoked";
+                /** @description 上一页返回的游标，省略时从首页开始读取。 */
+                after?: components["parameters"]["PageAfter"];
+                /** @description 单页最多返回条数（1–100，默认 50）。 */
+                limit?: components["parameters"]["PageLimit"];
             };
             header?: never;
             path?: never;
@@ -1495,79 +1286,25 @@ export interface operations {
                     "application/json": components["schemas"]["Grants"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     revokeScopes: {
         parameters: {
             query?: never;
             header: {
-                "Idempotency-Key": string;
+                /** @description 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path: {
-                id: string;
+                /** @description 目标资源标识。 */
+                id: components["parameters"]["ResourceIdPath"];
             };
             cookie?: never;
         };
@@ -1586,6 +1323,78 @@ export interface operations {
                     "application/json": components["schemas"]["Grant"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listNotices: {
+        parameters: {
+            query?: {
+                /** @description 为 true 时仅返回尚未回报 deleted 或 retention_exception 的通知。 */
+                pending_ack?: boolean;
+                /** @description 上一页返回的游标，省略时从首页开始读取。 */
+                after?: components["parameters"]["PageAfter"];
+                /** @description 单页最多返回条数（1–100，默认 50）。 */
+                limit?: components["parameters"]["PageLimit"];
+            };
+            header?: never;
+            path: {
+                /** @description 目标资源标识。 */
+                id: components["parameters"]["ResourceIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notices"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    archiveApplication: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Revision"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Application"];
+                };
+            };
             /** @description 输入无效 */
             400: {
                 headers: {
@@ -1651,16 +1460,16 @@ export interface operations {
             };
         };
     };
-    listNotices: {
+    listOverdueNoticeApplications: {
         parameters: {
             query?: {
+                /** @description 判定为逾期的最小天数。 */
+                older_than_days?: number;
                 after?: string;
                 limit?: number;
             };
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -1671,7 +1480,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Notices"];
+                    "application/json": components["schemas"]["OverdueNoticeApplications"];
                 };
             };
             /** @description 输入无效 */
@@ -1743,11 +1552,14 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "Idempotency-Key": string;
+                /** @description 写操作幂等键；未知结果重试须复用原键，同键不同请求体返回 409。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path: {
-                notice_id: string;
-                id: string;
+                /** @description 撤回通知标识。 */
+                notice_id: components["parameters"]["NoticeIdPath"];
+                /** @description 目标资源标识。 */
+                id: components["parameters"]["ResourceIdPath"];
             };
             cookie?: never;
         };
@@ -1766,92 +1578,37 @@ export interface operations {
                     "application/json": components["schemas"]["Notice"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
     readAuthorizedData: {
         parameters: {
             query?: {
-                /** @description 仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。 */
+                /** @description 按单个对象 ID 精确读取详情；仅适用于 catalog 与 public_reviews 范围，其他范围传入返回 400。 */
                 id?: string;
-                /** @description 仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。 */
+                /** @description 按对象类别过滤（如目录的 course/teacher，评价的 course/mentor）；仅适用于 catalog 与 public_reviews 范围。 */
                 kind?: string;
-                /** @description 仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。 */
+                /** @description 关键词搜索词；仅适用于 catalog 范围，其他范围传入返回 400。 */
                 query?: string;
-                /** @description 仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。 */
+                /** @description 按学期标识过滤选课排课、目录或课程评价；适用于 schedule、catalog 与 public_reviews 范围。 */
                 term_id?: string;
-                /** @description 仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。 */
+                /** @description 按评价目标（课程或教师 ID）过滤公开评价；仅适用于 public_reviews 范围。 */
                 target_id?: string;
-                /** @description 仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。 */
+                /** @description 数据列表分页游标；仅适用于 schedule、catalog 与 public_reviews 列表查询，单对象范围禁止传入。 */
                 after?: string;
-                /** @description 仅目录支持 query；目录与评价支持 id/kind；评价支持 target_id；课表、目录和评价列表支持 term_id/after/limit。其他范围禁止查询参数。 */
+                /** @description 数据列表单页条数上限（1–100，默认 50）；仅适用于 schedule、catalog 与 public_reviews 列表查询，单对象范围禁止传入。 */
                 limit?: number;
             };
             header?: never;
             path: {
-                scope: components["schemas"]["Scope"];
+                /** @description 请求的单一业务信息范围。 */
+                scope: components["parameters"]["ScopePath"];
             };
             cookie?: never;
         };
@@ -1860,75 +1617,23 @@ export interface operations {
             /** @description 成功 */
             200: {
                 headers: {
+                    /** @description 应用当日 UTC 调用配额上限。 */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description 应用当日 UTC 剩余调用配额。 */
+                    "X-RateLimit-Remaining"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Data"];
                 };
             };
-            /** @description 输入无效 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 身份或令牌无效 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 权限不足 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 对象不存在或不属于本人 */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 修订或幂等冲突 */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 调用配额用尽 */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description 依赖不可用 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["Unavailable"];
         };
     };
 }

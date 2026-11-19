@@ -18,6 +18,32 @@ var (
 	ErrQuota           = errors.New("quota_exceeded")
 	ErrClient          = errors.New("invalid_client")
 )
+
+type Problem struct {
+	Code   string `json:"code"`
+	Reason string `json:"reason,omitempty"`
+}
+type ReasonError struct {
+	Base   error
+	Reason string
+}
+
+func (e ReasonError) Error() string { return e.Base.Error() + ":" + e.Reason }
+func (e ReasonError) Unwrap() error { return e.Base }
+func WithReason(base error, reason string) error {
+	if base == nil || reason == "" {
+		return base
+	}
+	return ReasonError{Base: base, Reason: reason}
+}
+func ErrorReason(err error) string {
+	var r ReasonError
+	if errors.As(err, &r) {
+		return r.Reason
+	}
+	return ""
+}
+
 var Scopes = []string{"student_status", "schools", "qq_binding_status", "qq_binding_details", "profile", "schedule", "catalog", "public_reviews"}
 
 type Principal struct {
@@ -38,23 +64,60 @@ type ApplicationInput struct {
 	Revision        int64    `json:"revision,omitempty"`
 }
 type Application struct {
-	ID                 string    `json:"id"`
-	Name               string    `json:"name"`
-	Purpose            string    `json:"purpose"`
-	RedirectURIs       []string  `json:"redirect_uris"`
-	RequestedScopes    []string  `json:"requested_scopes"`
-	ApprovedScopes     []string  `json:"approved_scopes"`
-	ClientType         string    `json:"client_type"`
-	State              string    `json:"state"`
-	Note               string    `json:"note"`
-	Revision           int64     `json:"revision"`
-	CredentialRevision int64     `json:"credential_revision"`
-	Policy             Policy    `json:"policy"`
-	CreatedAt          time.Time `json:"created_at"`
+	ID                 string     `json:"id"`
+	Name               string     `json:"name"`
+	Purpose            string     `json:"purpose"`
+	RedirectURIs       []string   `json:"redirect_uris"`
+	RequestedScopes    []string   `json:"requested_scopes"`
+	ApprovedScopes     []string   `json:"approved_scopes"`
+	ClientType         string     `json:"client_type"`
+	State              string     `json:"state"`
+	Note               string     `json:"note"`
+	Revision           int64      `json:"revision"`
+	CredentialRevision int64      `json:"credential_revision"`
+	Policy             Policy     `json:"policy"`
+	QuotaUsed          *int       `json:"quota_used,omitempty"`
+	ArchivedAt         *time.Time `json:"archived_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
 }
 type AppRecord struct {
 	View              Application
 	Owner, SecretHash string
+	UpdatedAt         time.Time
+	TerminatedAt      *time.Time
+	ReviewedBy        string
+	ReviewedAt        *time.Time
+}
+type AdminApplication struct {
+	ID                 string     `json:"id"`
+	Owner              string     `json:"owner"`
+	Name               string     `json:"name"`
+	Purpose            string     `json:"purpose"`
+	RedirectURIs       []string   `json:"redirect_uris"`
+	RequestedScopes    []string   `json:"requested_scopes"`
+	ApprovedScopes     []string   `json:"approved_scopes"`
+	ClientType         string     `json:"client_type"`
+	State              string     `json:"state"`
+	Note               string     `json:"note"`
+	Revision           int64      `json:"revision"`
+	CredentialRevision int64      `json:"credential_revision"`
+	Policy             Policy     `json:"policy"`
+	ActiveGrants       int        `json:"active_grants"`
+	ReviewedBy         string     `json:"reviewed_by,omitempty"`
+	ReviewedAt         *time.Time `json:"reviewed_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+type AdminAppFilter struct {
+	State string
+	Owner string
+	After string
+	Limit int
+}
+type AppCursor struct {
+	Set       bool
+	UpdatedAt time.Time
+	ID        string
 }
 type ReviewInput struct {
 	Revision       int64    `json:"revision"`
@@ -77,17 +140,27 @@ type ConsentInput struct {
 	Challenge   string   `json:"code_challenge"`
 	Method      string   `json:"code_challenge_method"`
 }
+type ConsentApplication struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Purpose      string `json:"purpose"`
+	ClientType   string `json:"client_type"`
+	GrantSeconds int    `json:"grant_seconds"`
+}
 type Consent struct {
-	QQTiers     []string    `json:"qq_tiers"`
-	ID          string      `json:"id"`
-	Application Application `json:"application"`
-	Scopes      []string    `json:"requested_scopes"`
-	RedirectURI string      `json:"redirect_uri"`
-	ExpiresAt   time.Time   `json:"expires_at"`
+	QQTiers              []string           `json:"qq_tiers"`
+	ID                   string             `json:"id"`
+	Application          ConsentApplication `json:"application"`
+	Scopes               []string           `json:"requested_scopes"`
+	ActiveGrantedScopes  []string           `json:"active_granted_scopes"`
+	ActiveGrantExpiresAt *time.Time         `json:"active_grant_expires_at,omitempty"`
+	RedirectURI          string             `json:"redirect_uri"`
+	ExpiresAt            time.Time          `json:"expires_at"`
 }
 type ConsentRecord struct {
 	View          Consent
 	Owner         string
+	AppRevision   int64
 	Input         ConsentInput
 	Decision      string
 	Selected      []string
@@ -100,6 +173,7 @@ type ConsentRecord struct {
 type ConsentDecision struct {
 	Decision string   `json:"decision"`
 	Scopes   []string `json:"scopes"`
+	Mode     string   `json:"mode,omitempty"`
 }
 type AuthorizationResult struct {
 	RedirectURI string `json:"redirect_uri"`
@@ -118,23 +192,49 @@ type TokenRecord struct {
 	ExpiresAt                  time.Time
 }
 type Grant struct {
-	ID        string    `json:"id"`
-	AppID     string    `json:"app_id"`
-	AppName   string    `json:"app_name"`
-	Subject   string    `json:"subject"`
-	Scopes    []string  `json:"scopes"`
-	State     string    `json:"state"`
-	ExpiresAt time.Time `json:"expires_at"`
-	Revision  int64     `json:"revision"`
+	ID                string     `json:"id"`
+	AppID             string     `json:"app_id"`
+	AppName           string     `json:"app_name"`
+	Subject           string     `json:"subject"`
+	Scopes            []string   `json:"scopes"`
+	State             string     `json:"state"`
+	TerminationReason string     `json:"termination_reason,omitempty"`
+	GrantedAt         time.Time  `json:"granted_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	LastDataReadAt    *time.Time `json:"last_data_read_at,omitempty"`
+	ExpiresAt         time.Time  `json:"expires_at"`
+	Revision          int64      `json:"revision"`
 }
 type GrantRecord struct {
-	View        Grant
-	Owner       string
-	AppRevision int64
+	View         Grant
+	Owner        string
+	AppRevision  int64
+	UpdatedAt    time.Time
+	TerminatedAt *time.Time
+}
+type GrantSummary struct {
+	Record         GrantRecord
+	AppState       string
+	CurrentAppRev  int64
+	OwnerClosed    bool
+	AppOwnerClosed bool
+}
+type GrantCursor struct {
+	Set       bool
+	Rank      int
+	UpdatedAt time.Time
+	ID        string
+}
+type GrantListEntry struct {
+	Record             GrantRecord
+	AppState           string
+	CurrentAppRevision int64
+	OwnerClosed        bool
 }
 type RevokeInput struct {
-	Revision int64    `json:"revision"`
-	Scopes   []string `json:"scopes"`
+	Revision  int64    `json:"revision"`
+	Scopes    []string `json:"scopes,omitempty"`
+	RevokeAll bool     `json:"revoke_all,omitempty"`
 }
 type Notice struct {
 	Sequence        int64      `json:"sequence"`
@@ -152,6 +252,44 @@ type Notice struct {
 type Acknowledgement struct {
 	Status string `json:"status"`
 	Note   string `json:"note"`
+}
+type CategoryBacklog struct {
+	HasBacklog      bool       `json:"has_backlog"`
+	OldestExpiredAt *time.Time `json:"oldest_expired_at,omitempty"`
+	LagSeconds      int64      `json:"lag_seconds"`
+}
+type BacklogSummary struct {
+	ObservedAt      time.Time       `json:"observed_at"`
+	HasBacklog      bool            `json:"has_backlog"`
+	OldestExpiredAt *time.Time      `json:"oldest_expired_at,omitempty"`
+	MaxLagSeconds   int64           `json:"max_lag_seconds"`
+	PendingNotices  CategoryBacklog `json:"pending_notices"`
+	ExpiredRequests CategoryBacklog `json:"expired_requests"`
+	ExpiredTokens   CategoryBacklog `json:"expired_tokens"`
+	ExpiredConsents CategoryBacklog `json:"expired_consents"`
+	ExpiredEvents   CategoryBacklog `json:"expired_events"`
+	ExpiredNotices  CategoryBacklog `json:"expired_notices"`
+	ExpiredQuotas   CategoryBacklog `json:"expired_quotas"`
+	ArchivedGrants  CategoryBacklog `json:"archived_grants"`
+	ArchivedApps    CategoryBacklog `json:"archived_apps"`
+}
+type QuotaWindow struct {
+	Set       bool
+	Limit     int
+	Remaining int
+}
+type OverdueNoticeApplication struct {
+	AppID          string    `json:"app_id"`
+	AppName        string    `json:"app_name"`
+	Owner          string    `json:"owner"`
+	State          string    `json:"state"`
+	OverdueNotices int       `json:"overdue_notices"`
+	OldestNoticeAt time.Time `json:"oldest_notice_at"`
+}
+type OverdueCursor struct {
+	Set            bool
+	OldestNoticeAt time.Time
+	AppID          string
 }
 type Page[T any] struct {
 	Items []T    `json:"items"`
@@ -208,6 +346,7 @@ type ReviewItem struct {
 	ID        string    `json:"id"`
 	Kind      string    `json:"kind"`
 	TargetID  string    `json:"target_id"`
+	TermID    string    `json:"term_id,omitempty"`
 	Body      string    `json:"body"`
 	Ratings   [5]int    `json:"ratings"`
 	CreatedAt time.Time `json:"created_at"`
@@ -232,7 +371,8 @@ type Source interface {
 	Read(context.Context, string, string, Query) (Data, error)
 }
 type Repository interface {
-	Transaction(context.Context, string, string, func(Transaction) error) error
+	Transaction(context.Context, string, string, bool, func(Transaction) error) error
+	LocateApp(context.Context, string) (AppRecord, error)
 	LocateConsent(context.Context, string) (ConsentRecord, error)
 	LocateCode(context.Context, string) (ConsentRecord, error)
 	LocateToken(context.Context, string) (TokenRecord, GrantRecord, error)
@@ -241,27 +381,35 @@ type Repository interface {
 }
 type Transaction interface {
 	Closed(string) (bool, error)
-	CloseOwner(string, string) error
+	CloseOwner(string, string, time.Time) error
 	App(string) (AppRecord, error)
 	Apps(string, bool, string, int) ([]AppRecord, error)
+	AdminApp(string, time.Time) (AdminApplication, error)
+	AdminApps(string, string, time.Time, AppCursor, int) ([]AdminApplication, error)
 	SaveApp(AppRecord) error
 	CountApps(string) (int, error)
-	SuspendOwnedApps(string) error
+	SuspendOwnedApps(string, time.Time) error
 	Consent(string) (ConsentRecord, error)
 	PendingConsents(string, time.Time) (int, error)
 	SaveConsent(ConsentRecord) error
 	Grant(string) (GrantRecord, error)
 	OwnerGrant(string, string) (GrantRecord, error)
-	Grants(string, string, int) ([]GrantRecord, error)
+	Grants(string, string, int) ([]GrantSummary, error)
+	ListGrants(string, string, time.Time, GrantCursor, int) ([]GrantListEntry, error)
 	SaveGrant(GrantRecord) error
+	TouchGrantRead(string, time.Time) error
 	Token(string) (TokenRecord, error)
 	SaveToken(TokenRecord) error
 	RevokeCodeTokens(string, string) error
-	Quota(string, string, int) error
+	Quota(string, string, int) (int, error)
+	QuotaUsed(string, string) (int, error)
 	Notice(string) (Notice, error)
-	Notices(string, string, int) ([]Notice, error)
+	Notices(string, bool, string, int) ([]Notice, error)
+	OverdueNoticeApps(time.Time, OverdueCursor, int) ([]OverdueNoticeApplication, error)
+	LockAppAck(string) error
+	MarkNoticesSeen([]string, time.Time) error
 	SaveNotice(Notice) error
 	Replay(string, string) (string, json.RawMessage, error)
-	SaveReplay(string, string, string, json.RawMessage) error
-	Event(string, string, string, string) error
+	SaveReplay(string, string, string, json.RawMessage, time.Time) error
+	Event(string, string, string, string, string, time.Time) error
 }
