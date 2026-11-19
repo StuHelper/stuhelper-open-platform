@@ -1394,7 +1394,7 @@
       "session": {
         "type": "http",
         "scheme": "bearer",
-        "description": "StuHelper Next 用户会话"
+        "description": "StuHelper 用户会话"
       },
       "businessToken": {
         "type": "http",
