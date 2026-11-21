@@ -71,5 +71,6 @@ scenario_tests:
   RET-05:
     - backlog_test.go#TestBacklogUsesCleanupCalendarOnLeapDay
     - repair_test.go#TestCleanupIsBoundedPreservesLiveDataAndRollsBackFailures
+    - cleanup_test.go#TestCleanupAppliesIndependentBatchesAcrossEightCategories
     - governance_test.go#TestQuotaHeadersPendingAckOverdueInspectionAndArchiveRetention
     - backlog_test.go#TestBacklogObservesPendingNoticesAndRetentionLag
