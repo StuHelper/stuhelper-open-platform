@@ -23,6 +23,7 @@ capabilities:
   - open-platform.manage
   - open-platform.data
 capability_requires: {}
+# 覆盖授权、审计与数据保留。仓库检查验证文件与测试函数的对应关系。
 scenario_tests:
   AUDIT-01:
     - postgres/audit_query_test.go#TestPublicAuditQuery
@@ -70,5 +71,6 @@ scenario_tests:
   RET-05:
     - backlog_test.go#TestBacklogUsesCleanupCalendarOnLeapDay
     - repair_test.go#TestCleanupIsBoundedPreservesLiveDataAndRollsBackFailures
+    - cleanup_test.go#TestCleanupAppliesIndependentBatchesAcrossEightCategories
     - governance_test.go#TestQuotaHeadersPendingAckOverdueInspectionAndArchiveRetention
     - backlog_test.go#TestBacklogObservesPendingNoticesAndRetentionLag
