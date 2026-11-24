@@ -94,3 +94,27 @@ DO $$ BEGIN
   END IF;
 END $$;
 CREATE INDEX IF NOT EXISTS invalid_revisions_time ON open_platform.invalid_revisions(invalidated_at,app_id,revision);
+
+-- Final completion can occur later than this module's own closure step.
+ALTER TABLE open_platform.owners ADD COLUMN IF NOT EXISTS closure_completed_at timestamptz;
+CREATE INDEX IF NOT EXISTS open_platform_closure_marker_expiry ON open_platform.owners(closure_completed_at,owner_key) WHERE closure_completed_at IS NOT NULL;
+CREATE OR REPLACE FUNCTION open_platform.mark_closure_completed(p_owner text,p_id text,p_at timestamptz)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+BEGIN
+ IF p_at IS NULL OR NOT isfinite(p_at) OR p_at>statement_timestamp()+interval '5 minutes' THEN
+    RAISE EXCEPTION 'invalid closure completion' USING ERRCODE='22023';
+ END IF;
+ UPDATE open_platform.owners SET closure_completed_at=p_at WHERE owner_key=p_owner AND closure_id=p_id AND closure_completed_at IS NULL;
+ IF EXISTS (SELECT 1 FROM open_platform.owners WHERE owner_key=p_owner AND (closure_id IS DISTINCT FROM p_id OR closure_completed_at IS DISTINCT FROM p_at)) THEN
+    RAISE EXCEPTION 'inconsistent closure completion' USING ERRCODE='22023';
+ END IF;
+END;
+$$;
+CREATE OR REPLACE FUNCTION open_platform.prune_closure_markers(p_limit integer) RETURNS bigint
+LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog SET TimeZone='Asia/Shanghai' AS $$
+ WITH due AS (SELECT owner_key FROM open_platform.owners WHERE closure_completed_at + interval '12 months' <= statement_timestamp()
+   ORDER BY closure_completed_at,owner_key LIMIT least(greatest(p_limit,0),1000) FOR UPDATE SKIP LOCKED),
+ removed AS (DELETE FROM open_platform.owners t USING due WHERE t.owner_key=due.owner_key RETURNING 1)
+ SELECT count(*) FROM removed
+$$;
+REVOKE ALL ON FUNCTION open_platform.mark_closure_completed(text,text,timestamptz),open_platform.prune_closure_markers(integer) FROM PUBLIC;
